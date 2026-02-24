@@ -1,0 +1,13 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# MolPatcher Outputs (Ignore generated files only)
+itps/patched_*.itp
+pdbs/patched_*.pdb
+
+# Ignore specific test result files
+pdbs/butane_new.pdb
+pdbs/butane_gauche.pdb
+pdbs/6oge_test_io.pdb

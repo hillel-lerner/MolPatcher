@@ -1,0 +1,16 @@
+REMARK   1 File created by GaussView 6.0.16
+HETATM    1  C1          0      -1.032   0.710   0.000                       C
+HETATM    2  C2          0       0.474   0.710   0.000                       C
+HETATM    3  H1          0      -1.421   1.757   0.000                       H
+HETATM    4  H2          0      -1.427   0.187  -0.905                       H
+HETATM    5  H3          0      -1.427   0.187   0.905                       H
+HETATM    6  C3          0       1.032  -0.698   0.000                       C
+HETATM    7  H4          0       0.852   1.260  -0.902                       H
+HETATM    8  H5          0       0.848   1.240   0.915                       H
+HETATM    9  C4          0       2.539  -0.698   0.000                       C
+HETATM   10  H6          0       0.655  -1.248   0.903                       H
+HETATM   11  H7          0       0.655  -1.248  -0.902                       H
+HETATM   12  H8          0       2.928  -1.745   0.000                       H
+HETATM   13  H9          0       2.933  -0.176  -0.905                       H
+HETATM   14  H10         0       2.933  -0.175   0.905                       H
+END
