@@ -86,42 +86,68 @@ class Mol:
     
     def reindex(self):
         """
-        Synchronizes everything: atom numbers, charge groups, PDB serials, 
-        and all bonded interaction pointers.
+        Synchronizes atom numbers and all bonded interactions
+        using the index_map lookup dictionary.
         """
         index_map = {}
         
-        # 1. Update Atoms, CGNR, and create the Map
         for i, atom in enumerate(self.atoms):
             new_nr = i + 1
-            # Map the OLD number to the NEW number
+            # Record: {Old ID: New ID}
             index_map[atom.number] = new_nr
-            
+            # Update the atom objects directly
             atom.number = new_nr
-            # Setting cgnr to match the new atom number for consistency
             atom.cgnr = new_nr  
-            
-        # 2. Sync PDB Records serials
+        # Sync PDB serials to match ITP atom numbers
         for i, record in enumerate(self.records):
             record.serial = i + 1
 
-        # 3. Update all bonded interactions using the index_map
-        # This helper replaces the old indices with the new ones from our map
-        def remap_list(interaction_list, attr_count):
-            new_list = []
-            for obj in interaction_list:
-                try:
-                    # Target only the relevant attributes (a1, a2, etc.)
-                    attrs = ['a1', 'a2', 'a3', 'a4'][:attr_count]
-                    updated_params = {attr: index_map[getattr(obj, attr)] for attr in attrs}
-                    # This is where 'replace' is used
-                    new_list.append(replace(obj, **updated_params))
-                except KeyError:
-                    # If an atom was deleted during surgery, the interaction is skipped
-                    continue
-            return new_list
 
-        self.bonds = remap_list(self.bonds, 2)
-        self.pairs = remap_list(self.pairs, 2)
-        self.angles = remap_list(self.angles, 3)
-        self.dihs = remap_list(self.dihs, 4)
+        # Update Bonds (a1, a2)
+        new_bonds = []
+        for bond in self.bonds:
+            try:
+                # We explicitly look up the new names for a1 and a2
+                new_a1 = index_map[bond.a1]
+                new_a2 = index_map[bond.a2]
+                new_bonds.append(replace(bond, a1=new_a1, a2=new_a2))
+            except KeyError:
+                # If an atom was deleted during surgery, skip this bond
+                continue
+        self.bonds = new_bonds
+
+        # Update Pairs (a1, a2)
+        new_pairs = []
+        for pair in self.pairs:
+            try:
+                new_a1 = index_map[pair.a1]
+                new_a2 = index_map[pair.a2]
+                new_pairs.append(replace(pair, a1=new_a1, a2=new_a2))
+            except KeyError:
+                continue
+        self.pairs = new_pairs
+
+        # Update Angles (a1, a2, a3)
+        new_angles = []
+        for angle in self.angles:
+            try:
+                new_a1 = index_map[angle.a1]
+                new_a2 = index_map[angle.a2]
+                new_a3 = index_map[angle.a3]
+                new_angles.append(replace(angle, a1=new_a1, a2=new_a2, a3=new_a3))
+            except KeyError:
+                continue
+        self.angles = new_angles
+
+        # Update Dihedrals (a1, a2, a3, a4)
+        new_dihs = []
+        for dih in self.dihs:
+            try:
+                new_a1 = index_map[dih.a1]
+                new_a2 = index_map[dih.a2]
+                new_a3 = index_map[dih.a3]
+                new_a4 = index_map[dih.a4]
+                new_dihs.append(replace(dih, a1=new_a1, a2=new_a2, a3=new_a3, a4=new_a4))
+            except KeyError:
+                continue
+        self.dihs = new_dihs

@@ -37,7 +37,7 @@ def delete_atoms(base_records, target_anchors, extra_deletions=None):
     return atoms_to_delete
 
 def stitch_molecules(base_mol, aligned_patch_atoms, target_reference, target_anchors, patch_mol):
-    """Surgically inserts patch atoms immediately after the anchor NZ atom."""
+    """Inserts patch atoms immediately after the anchor NZ atom."""
     nz_serial = target_anchors[2].serial
 
     # Prune existing atoms
@@ -62,8 +62,8 @@ def stitch_molecules(base_mol, aligned_patch_atoms, target_reference, target_anc
     for i, record in enumerate(aligned_patch_atoms):
         if record not in patch_to_delete and record not in patch_overlap_anchors:
             f_p_records.append(replace(record, res_name=target_reference.res_name, 
-                                      chain=target_reference.chain, res_seq=target_reference.res_seq, 
-                                      seg_id=dynamic_seg_id))
+                                    chain=target_reference.chain, res_seq=target_reference.res_seq, 
+                                    seg_id=dynamic_seg_id))
             f_p_atoms.append(replace(patch_mol.atoms[i], res_n=target_reference.res_seq, 
                                     res=target_reference.res_name))
 
@@ -73,8 +73,8 @@ def stitch_molecules(base_mol, aligned_patch_atoms, target_reference, target_anc
 
     # Assemble and add topolofical interactions at the NZ-C3 junction (using temporary/original indices)
     stitched_mol = Mol(base_mol.name, final_records, final_atoms, 
-                       base_mol.bonds + patch_mol.bonds, base_mol.pairs + patch_mol.pairs, 
-                       base_mol.angles + patch_mol.angles, base_mol.dihs + patch_mol.dihs)
+                    base_mol.bonds + patch_mol.bonds, base_mol.pairs + patch_mol.pairs, 
+                    base_mol.angles + patch_mol.angles, base_mol.dihs + patch_mol.dihs)
 
     p_c3_idx = next(a for a in patch_mol.atoms if a.atom == "C3").number
     stitched_mol.bonds.append(ItpBond(nz_serial, p_c3_idx, 1))
