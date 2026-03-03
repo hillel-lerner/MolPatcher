@@ -21,11 +21,10 @@ def main():
     base_infile  = os.path.join(pdb_dir, "butane_02.pdb")  # Head (static reference)
     outfile      = os.path.join(pdb_dir, "butane_gauche.pdb")
     
-    # FIX: Catch all 4 return values from PdbParser.read_file
     headers, patch_atoms, ters, _ = PdbParser.read_file(patch_infile)
     _, base_atoms, _, _ = PdbParser.read_file(base_infile)
 
-    # 1. Define Anchors for Alignment
+    # Define Anchors for Alignment
     # We use C2 and C3 as the common axis for both molecules
     p_anchors = [
         next(a for a in patch_atoms if a.name == "C2"),
@@ -38,11 +37,11 @@ def main():
         next(a for a in base_atoms if a.name == "C1")
     ]
 
-    # 2. Align patch to base first
+    # Align patch to base first
     aligner = PatchAligner(patch_atoms, p_anchors, b_anchors)
     patch_atoms = aligner.implement_align()
 
-    # 3. Define Pivot Axis (C2-C3) from the base
+    # Define Pivot Axis (C2-C3) from the base
     c2 = next(a for a in base_atoms if a.name == "C2")
     c3 = next(a for a in base_atoms if a.name == "C3")
     
@@ -64,7 +63,7 @@ def main():
     for i, atom in enumerate(patch_atoms):
         updated_patch.append(replace(atom, x=patch_coords[i][0], y=patch_coords[i][1], z=patch_coords[i][2]))
 
-    # 5. STITCH (Combine Halves)
+    # Stitch (Combine Halves)
     final_atoms = []
     head_names = ["C1", "H1", "H2", "H3", "C2", "H4", "H5"]
     tail_names = ["C3", "H6", "H7", "C4", "H8", "H9", "H10"]
@@ -77,7 +76,7 @@ def main():
         if atom.name in tail_names:
             final_atoms.append(atom)
 
-    # 6. Build and Save
+    # Build and Save
     BuildPdb(outfile, final_atoms, headers, ters).write_pdb()
     print(f"Done. Gauche conformer saved to {outfile}")
 

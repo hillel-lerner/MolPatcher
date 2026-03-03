@@ -11,3 +11,4 @@ pdbs/patched_*.pdb
 pdbs/butane_new.pdb
 pdbs/butane_gauche.pdb
 pdbs/6oge_test_io.pdb
+itps/6oge_test_io.itp
