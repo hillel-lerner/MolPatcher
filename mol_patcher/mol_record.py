@@ -151,3 +151,5 @@ class Mol:
             except KeyError:
                 continue
         self.dihs = new_dihs
+
+        return index_map

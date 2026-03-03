@@ -36,51 +36,65 @@ def delete_atoms(base_records, target_anchors, extra_deletions=None):
                     break 
     return atoms_to_delete
 
-def stitch_molecules(base_mol, aligned_patch_atoms, target_reference, target_anchors, patch_mol):
-    """Inserts patch atoms immediately after the anchor NZ atom."""
-    nz_serial = target_anchors[2].serial
+def stitch_molecules(
+        base_mol, 
+        aligned_patch_atoms, 
+        target_reference, 
+        target_anchors, 
+        patch_mol, 
+        patch_anchor_names=["N", "C1", "C2"],
+        patch_bridge_name="C3"):
+    
+    """
+    Inserts patch atoms immediately after the anchor NZ atom
+    Calls Mol.reindex() to update the atom numbers for everything at the insertion point and onwards.
+    Modifies the subsequent calls to each of the updated atoms for the itp files.
+    """
+    anchor_serial = target_anchors[2].serial  # anchor serial is NZ on the protein
 
-    # Prune existing atoms
+    # Filter existing atoms
     protein_h_deletions = delete_atoms(base_mol.records, [target_anchors[2]])
+    
     patch_overlap_anchors = [
-        next(a for a in patch_mol.records if a.name == "N"),
-        next(a for a in patch_mol.records if a.name == "C1"),
-        next(a for a in patch_mol.records if a.name == "C2")
+        next(a for a in patch_mol.records if a.name.strip() == name) 
+        for name in patch_anchor_names
     ]
+
     patch_to_delete = delete_atoms(patch_mol.records, patch_overlap_anchors)
 
     # Filter protein atoms and find the exact insertion index
     final_records = [r for r in base_mol.records if r not in protein_h_deletions]
     final_atoms = [a for i, a in enumerate(base_mol.atoms) if base_mol.records[i] not in protein_h_deletions]
     
-    insert_idx = next(i for i, r in enumerate(final_records) if r.serial == nz_serial) + 1
+    insert_idx = next(i for i, r in enumerate(final_records) if r.serial == anchor_serial) + 1
 
     # Filter and re-tag the patch atoms
     dynamic_seg_id = target_anchors[0].seg_id
-    f_p_records, f_p_atoms = [], []
+    filter_patch_records, filter_patch_atoms = [], []
 
     for i, record in enumerate(aligned_patch_atoms):
         if record not in patch_to_delete and record not in patch_overlap_anchors:
-            f_p_records.append(replace(record, res_name=target_reference.res_name, 
+            filter_patch_records.append(replace(record, res_name=target_reference.res_name, 
                                     chain=target_reference.chain, res_seq=target_reference.res_seq, 
                                     seg_id=dynamic_seg_id))
-            f_p_atoms.append(replace(patch_mol.atoms[i], res_n=target_reference.res_seq, 
+            filter_patch_atoms.append(replace(patch_mol.atoms[i], res_n=target_reference.res_seq, 
                                     res=target_reference.res_name))
 
     # Splice patch into the middle of the lists
-    final_records[insert_idx:insert_idx] = f_p_records
-    final_atoms[insert_idx:insert_idx] = f_p_atoms
+    final_records[insert_idx:insert_idx] = filter_patch_records
+    final_atoms[insert_idx:insert_idx] = filter_patch_atoms
 
-    # Assemble and add topolofical interactions at the NZ-C3 junction (using temporary/original indices)
+    # Assemble and add topological interactions at the NZ-C3 junction)
     stitched_mol = Mol(base_mol.name, final_records, final_atoms, 
                     base_mol.bonds + patch_mol.bonds, base_mol.pairs + patch_mol.pairs, 
                     base_mol.angles + patch_mol.angles, base_mol.dihs + patch_mol.dihs)
 
-    p_c3_idx = next(a for a in patch_mol.atoms if a.atom == "C3").number
-    stitched_mol.bonds.append(ItpBond(nz_serial, p_c3_idx, 1))
-    stitched_mol.angles.append(ItpAngle(target_anchors[0].serial, nz_serial, p_c3_idx, 5))
-    stitched_mol.dihs.append(ItpDih(target_anchors[1].serial, target_anchors[0].serial, nz_serial, p_c3_idx, 9))
-    stitched_mol.pairs.append(ItpPair(target_anchors[1].serial, p_c3_idx, 1))
+    patch_bridge_idx = next(a for a in patch_mol.atoms if a.atom.strip() == patch_bridge_name.strip()).number
+
+    stitched_mol.bonds.append(ItpBond(anchor_serial, patch_bridge_idx, 1))
+    stitched_mol.angles.append(ItpAngle(target_anchors[0].serial, anchor_serial, patch_bridge_idx, 5))
+    stitched_mol.dihs.append(ItpDih(target_anchors[1].serial, target_anchors[0].serial, anchor_serial, patch_bridge_idx, 9))
+    stitched_mol.pairs.append(ItpPair(target_anchors[1].serial, patch_bridge_idx, 1))
 
     # Synchronize the pdb + itp information
     stitched_mol.reindex()

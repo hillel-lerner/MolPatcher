@@ -19,7 +19,6 @@ def test_full_system_integration():
     print("="*60)
 
     # Load Protein
-    # FIX: Catch 4 values
     headers, target_atoms, ters, t_name = PdbParser.read_file(protein_pdb)
     base_mol = Mol(name=t_name, records=target_atoms)
     base_mol.load_itp(protein_itp)
@@ -60,7 +59,7 @@ def test_full_system_integration():
     # Validate 3: Residue Identity
     # C3 is the first atom of the patch; verify it was rebranded
     c3_atom = next(at for at in stitched_mol.atoms if at.atom == "C3")
-    assert c3_atom.res == "LYS" and c3_atom.res_n == 188, "Patch rebranding failed!"
+    assert c3_atom.res == "LYS" and c3_atom.res_n == 188, "Patch rebranding failed."
 
     print("="*60)
     print("RESULT: ALL TOPOLOGY TESTS PASSED")

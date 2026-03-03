@@ -59,7 +59,7 @@ def main():
     patch_coords = twist.apply(patch_coords)      
     patch_coords = patch_coords + pivot_point     
 
-    # Update Patch Objects using 'replace' to maintain immutability safety
+    # Update Patch Objects using 'replace'
     updated_patch = []
     for i, atom in enumerate(patch_atoms):
         updated_patch.append(replace(atom, x=patch_coords[i][0], y=patch_coords[i][1], z=patch_coords[i][2]))
