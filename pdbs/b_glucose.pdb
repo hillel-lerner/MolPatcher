@@ -1,0 +1,28 @@
+REMARK  GENERATE LIGAND                                                               
+REMARK   DATE:     3/ 3/26      9:35:53      CREATED BY USER: charmm-gui              
+ATOM      1  C1  BGL B   1      -0.318   2.507  -0.944  1.00  0.00      BGLC
+ATOM      2  H1  BGL B   1      -0.950   3.425  -1.019  1.00  0.00      BGLC
+ATOM      3  O1  BGL B   1       0.928   2.930  -0.461  1.00  0.00      BGLC
+ATOM      4  HO1 BGL B   1       0.766   3.548   0.257  1.00  0.00      BGLC
+ATOM      5  C5  BGL B   1      -0.380   0.343   0.146  1.00  0.00      BGLC
+ATOM      6  H5  BGL B   1      -1.238  -0.339   0.369  1.00  0.00      BGLC
+ATOM      7  O5  BGL B   1      -1.000   1.638  -0.039  1.00  0.00      BGLC
+ATOM      8  C2  BGL B   1      -0.174   1.912  -2.352  1.00  0.00      BGLC
+ATOM      9  H2  BGL B   1       0.825   2.220  -2.750  1.00  0.00      BGLC
+ATOM     10  O2  BGL B   1      -1.149   2.438  -3.263  1.00  0.00      BGLC
+ATOM     11  HO2 BGL B   1      -0.735   3.041  -3.891  1.00  0.00      BGLC
+ATOM     12  C3  BGL B   1      -0.235   0.395  -2.358  1.00  0.00      BGLC
+ATOM     13  H3  BGL B   1      -1.307   0.078  -2.402  1.00  0.00      BGLC
+ATOM     14  O3  BGL B   1       0.426  -0.134  -3.513  1.00  0.00      BGLC
+ATOM     15  HO3 BGL B   1      -0.119   0.028  -4.290  1.00  0.00      BGLC
+ATOM     16  C4  BGL B   1       0.341  -0.189  -1.088  1.00  0.00      BGLC
+ATOM     17  H4  BGL B   1       1.414   0.117  -1.033  1.00  0.00      BGLC
+ATOM     18  O4  BGL B   1       0.306  -1.613  -1.090  1.00  0.00      BGLC
+ATOM     19  HO4 BGL B   1       0.607  -1.909  -1.959  1.00  0.00      BGLC
+ATOM     20  C6  BGL B   1       0.516   0.330   1.371  1.00  0.00      BGLC
+ATOM     21  H61 BGL B   1       1.435   0.929   1.184  1.00  0.00      BGLC
+ATOM     22  H62 BGL B   1       0.836  -0.715   1.588  1.00  0.00      BGLC
+ATOM     23  O6  BGL B   1      -0.153   0.853   2.517  1.00  0.00      BGLC
+ATOM     24  HO6 BGL B   1      -0.656   1.627   2.239  1.00  0.00      BGLC
+TER      25      BGLC     1
+END
