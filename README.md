@@ -66,4 +66,5 @@ In `mol_stitcher.py`, verify the junction bond (e.g., base N to patch C) and ass
 
 ## Project Roadmap
 
-* **Advanced Deletion**: Implementing network-connectivity logic to prune covalent branches more reliably than distance-based methods.
+* **Steric Clash Resolution**: Implementing automatic ligand rotation to prevent steric clashed from occuring between the patch and the base molecule (protein) as a whole.
+* **Advanced Deletion**: Implementing network-connectivity logic to prune atoms more reliably than distance-based methods.
