@@ -57,7 +57,7 @@ def stitch_molecules(
     # Filter Lists
     final_records = [r for r in base_mol.records if r not in protein_h_deletions]
     
-    # Disconnect ITP filtering from PDB index. We identify deleted atoms by matching residue number and atom name.
+    # Disconnect ITP filtering from PDB index. Identify deleted atoms by matching residue number and atom name.
     deleted_identifiers = [(r.res_seq, r.name.strip()) for r in protein_h_deletions]
     final_atoms = [a for a in base_mol.atoms if (a.res_n, a.atom.strip()) not in deleted_identifiers]
     
@@ -86,7 +86,7 @@ def stitch_molecules(
     insert_idx_records = next(i for i, r in enumerate(final_records) if r.serial == anchor_serial) + 1
     final_records[insert_idx_records:insert_idx_records] = filter_patch_records
     
-    # Calculate insertion point specifically for the ITP list based on the target residue and atom name.
+    # Calculate insertion point for the ITP list based on the target residue and atom name.
     insert_idx_atoms = next(i for i, a in enumerate(final_atoms) if a.res_n == anchor_res_seq and a.atom.strip() == anchor_name) + 1
     final_atoms[insert_idx_atoms:insert_idx_atoms] = filter_patch_atoms
 
@@ -98,7 +98,7 @@ def stitch_molecules(
     # Add Junction Interactions
     patch_bridge_idx = next(a for a in patch_mol.atoms if a.atom.strip() == patch_bridge_name.strip()).number + offset
     
-    # CHANGED: Fetch native ITP numbers to guarantee reindex() connects the topology correctly
+    # Fetch native ITP numbers
     anch_0_itp = next(a.number for a in base_mol.atoms if a.res_n == target_anchors[0].res_seq and a.atom.strip() == target_anchors[0].name.strip())
     anch_1_itp = next(a.number for a in base_mol.atoms if a.res_n == target_anchors[1].res_seq and a.atom.strip() == target_anchors[1].name.strip())
     anch_2_itp = next(a.number for a in base_mol.atoms if a.res_n == anchor_res_seq and a.atom.strip() == anchor_name)
@@ -108,7 +108,7 @@ def stitch_molecules(
     stitched_mol.dihs.append(ItpDih(anch_1_itp, anch_0_itp, anch_2_itp, patch_bridge_idx, 9))
     stitched_mol.pairs.append(ItpPair(anch_1_itp, patch_bridge_idx, 1))
 
-    # 7. Reindex and CRITICAL SORT
+    # Reindex and Sort
     stitched_mol.reindex()
 
     stitched_mol.bonds.sort(key=lambda x: x.a1)
