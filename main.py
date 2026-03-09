@@ -62,7 +62,7 @@ if __name__ == "__main__":
         run_patch(
             # For running outside of CLI
             pdb_file="step3_input.pdb", 
-            res_id=188, 
+            res_id=136, 
             chain=" ", 
-            itp_file="PROD.itp"
+            itp_file="PROE.itp"
         )
