@@ -24,9 +24,9 @@ def run_patch(pdb_file, res_id, chain, itp_file):
 
     # Anchors
     pfp_anchors = [
-        pfp_mol.get_atom(1, "P", "PFP", "C1"),
-        pfp_mol.get_atom(1, "P", "PFP", "C2"),
-        pfp_mol.get_atom(1, "P", "PFP", "N")
+        pfp_mol.get_atom(1, " ", "PFP", "C10"),
+        pfp_mol.get_atom(1, " ", "PFP", "C11"),
+        pfp_mol.get_atom(1, " ", "PFP", "N")
     ]
     target_anchors = [
         target_mol.get_atom(res_id, chain, "LYS", "CE"),
@@ -61,8 +61,8 @@ if __name__ == "__main__":
     else:
         run_patch(
             # For running outside of CLI
-            pdb_file="6oge_prob_allatom.pdb", 
+            pdb_file="step3_input.pdb", 
             res_id=188, 
             chain=" ", 
-            itp_file="6oge_prob.itp"
+            itp_file="PROD.itp"
         )

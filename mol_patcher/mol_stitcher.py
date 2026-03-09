@@ -6,13 +6,13 @@ from .mol_record import Mol, ItpBond, ItpAngle, ItpDih, ItpPair
 def get_pfp_pdb():
     from .pdb_io import PdbParser
     cdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    pfp_path = os.path.join(cdir, 'pdbs', 'pfp_inter.pdb')
+    pfp_path = os.path.join(cdir, 'pdbs', 'pfp_patch_new.pdb')
     _, pfp_atoms, _, _ = PdbParser.read_file(pfp_path)
     return pfp_atoms
 
 def get_pfp_itp(mol_obj):
     cdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    itp_path = os.path.join(cdir, 'itps', 'pfp.itp')
+    itp_path = os.path.join(cdir, 'itps', 'pfp_patch_new.itp')
     mol_obj.load_itp(itp_path)
 
 def delete_atoms(base_records, target_anchors, extra_deletions=None):
@@ -42,8 +42,8 @@ def stitch_molecules(
         target_reference, 
         target_anchors, 
         patch_mol, 
-        patch_anchor_names=["N", "C1", "C2"],
-        patch_bridge_name="C3"):
+        patch_anchor_names=["N", "C10", "C11"],
+        patch_bridge_name="C7"):
     
     """
     Inserts patch atoms immediately after the anchor NZ atom
@@ -84,7 +84,7 @@ def stitch_molecules(
     final_records[insert_idx:insert_idx] = filter_patch_records
     final_atoms[insert_idx:insert_idx] = filter_patch_atoms
 
-    # Assemble and add topological interactions at the NZ-C3 junction)
+    # Assemble and add topological interactions at the NZ-C7 junction)
     stitched_mol = Mol(base_mol.name, final_records, final_atoms, 
                     base_mol.bonds + patch_mol.bonds, base_mol.pairs + patch_mol.pairs, 
                     base_mol.angles + patch_mol.angles, base_mol.dihs + patch_mol.dihs)
