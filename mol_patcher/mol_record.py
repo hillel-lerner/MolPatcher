@@ -107,7 +107,7 @@ class Mol:
         new_bonds = []
         for bond in self.bonds:
             try:
-                # We explicitly look up the new names for a1 and a2
+                # Explicitly look up the new names for a1 and a2
                 new_a1 = index_map[bond.a1]
                 new_a2 = index_map[bond.a2]
                 new_bonds.append(replace(bond, a1=new_a1, a2=new_a2))
