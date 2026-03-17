@@ -1288,6 +1288,7 @@
  CG2R66  CG2R61  CG2R66     5  1.1700000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp base
  CG2R66  CG2R66    FGR1     5  1.1875000e+02  5.0208000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
  CG2R66  CG2R66  CG2R66     5  1.2250000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp base
+ CT2    NG311   HGPAM1     5   114.000000   334.720000   0.000000   0.000000 ; rescued H angle
 [ dihedraltypes ]
 ; i	j	k	l	func	phi0	Kphi	mult
 
@@ -1898,6 +1899,8 @@
  CG2R66  CG2R61  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
  CG2R66  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp base
  CG2R66  CG2R66  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
+ CT2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral
+ HA2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral
  OC3C61  CC3162  CC3161   NC2D1     9  0.000000e+00  8.368000e-01      3
 [ dihedraltypes ]
 ; i	j	k	l	func	q0	Kq

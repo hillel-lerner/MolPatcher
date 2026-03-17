@@ -2060,7 +2060,7 @@ PROE       3
   2054       HGA3    136    LYS     H5   2054     0.0943     1.0080  ; int balance (+0.0043)
   2055       HGA3    136    LYS     H6   2055     0.0943     1.0080  ; int balance (+0.0043)
   2056       HGA3    136    LYS     H7   2056     0.0943     1.0080  ; int balance (+0.0043)
-  2057          H    136    LYS    HZ1   2057     0.3351     1.0080  ; int balance (+0.0043)  ; type changed from HC to H
+  2057     HGPAM1    136    LYS    HZ1   2057     0.3351     1.0080  ; int balance (+0.0043)  ; type changed from HC to HGPAM1
   2058          C    136    LYS      C   2058     0.5100    12.0110 
   2059          O    136    LYS      O   2059    -0.5100    15.9994 
   2060        NH1    137    SER      N   2060    -0.4700    14.0070 

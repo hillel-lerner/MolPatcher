@@ -52,8 +52,17 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     stitched_mol = mol_stitcher.force_integer_charge(stitched_mol, res_id)
 
 
-    # Update NZ atom type from NH3 to NG311 and it's hydrogen HC to H
-    stitched_mol = mol_stitcher.update_atom_types(stitched_mol, res_id, type_updates={"NZ": "NG311", "HZ1": "H"})  
+    # Update topology atom types
+    stitched_mol = mol_stitcher.update_atom_types(
+        stitched_mol, 
+        res_id, 
+        type_updates={
+            "NZ": "NG311",
+            "HZ1": "HGPAM1", 
+            "HZ2": "HGPAM1", 
+            "HZ3": "HGPAM1"
+        }
+    )  
     
     # Save outputs
     out_pdb = os.path.join(cdir, 'pdbs', f"patched_{res_id}.pdb")

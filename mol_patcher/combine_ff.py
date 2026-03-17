@@ -54,6 +54,22 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
         mods["[ atomtypes ]"] = []
     mods["[ atomtypes ]"].extend(extra_atomtypes)
 
+    extra_angles = [
+        " CT2    NG311   HGPAM1     5   114.000000   334.720000   0.000000   0.000000 ; rescued H angle\n"
+    ]
+    extra_dihs = [
+        " CT2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral\n",
+        " HA2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral\n"
+    ]
+    
+    if "[ angletypes ]" not in mods:
+        mods["[ angletypes ]"] = []
+    mods["[ angletypes ]"].extend(extra_angles)
+    
+    if "[ dihedraltypes_proper ]" not in mods:
+        mods["[ dihedraltypes_proper ]"] = []
+    mods["[ dihedraltypes_proper ]"].extend(extra_dihs)
+
     # 4. Merge, deduplicate, sort, and write
     with open(base_path, "r") as f_base, open(output_path, "w") as f_out:
         current_sec = None
