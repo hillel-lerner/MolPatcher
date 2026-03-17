@@ -51,6 +51,14 @@ def stitch_molecules(
 
     # Handle Deletions
     protein_h_deletions = delete_atoms(base_mol.records, [target_anchors[2]])
+
+    hz_candidates = [a for a in protein_h_deletions if a.name.strip() in ['HZ1', 'HZ2', 'HZ3']]
+    if len(hz_candidates) > 0:
+        kept_h = hz_candidates[0]
+        # Remove it from the kill-list so it survives
+        protein_h_deletions.remove(kept_h)
+
+        
     patch_overlap_anchors = [next(a for a in patch_mol.records if a.name.strip() == name) for name in patch_anchor_names]
     patch_to_delete = delete_atoms(patch_mol.records, patch_overlap_anchors)
 
@@ -116,4 +124,102 @@ def stitch_molecules(
     stitched_mol.angles.sort(key=lambda x: x.a1)
     stitched_mol.dihs.sort(key=lambda x: x.a1)
 
+    return stitched_mol
+
+def balance_charges(stitched_mol, target_res_num, new_charges, sink_atoms):
+    """
+    Purpose is to maintain charge balance at the junction between patch and base.
+    Updates specific charges and distributes the exact numerical difference across a defined list of sink atoms 
+    Note: 'new_charge' is the charge from the pfp intermediate, 'old_charge' is from the original lysine
+    Note: pfp junction charges are hardcoded in main.py, but were taken from pfp_patch_new.itp
+    """
+    delta = 0.0
+    
+    # Update the charges for the junction atoms and calculate surplus charge. 
+    # 'new_charge' is the charges from the pfp intermediate, 'old_charge' is from the original lysine
+    # pfp junction charges are hardcoded in main.py, but were taken from pfp_patch_new.itp
+    for atom in stitched_mol.atoms:
+        if atom.res_n == target_res_num and atom.atom.strip() in new_charges:
+            old_charge = float(atom.charge)
+            new_charge = new_charges[atom.atom.strip()]
+            
+            delta += (new_charge - old_charge)
+            atom.charge = float(new_charge)
+            atom.comment = f"; old charge: {old_charge:.4f}"
+
+    # Distribute the inverse of the surplus charge to the sink atoms
+    if sink_atoms and delta != 0.0:
+        inverse_delta = -delta
+        base_offset = inverse_delta / len(sink_atoms)
+        
+        # Get the Mol objects for the sink atoms
+        sink_refs = [a for a in stitched_mol.atoms if a.res_n == target_res_num and a.atom.strip() in sink_atoms]
+        
+        for i, atom in enumerate(sink_refs):
+            old_charge = float(atom.charge)
+            
+            # For the very last atom, absorb any floating-point rounding error
+            if i == len(sink_refs) - 1:
+                applied_offset = inverse_delta - (base_offset * (len(sink_refs) - 1))
+            else:
+                applied_offset = base_offset
+
+            # Apply offset to the old_charge variable
+            atom.charge = float(old_charge + applied_offset)
+            atom.comment = f"; old charge: {old_charge:.4f}"
+            
+    return stitched_mol
+
+def force_integer_charge(stitched_mol, target_res_num):
+    """
+    Forces the ENTIRE system to have an exact integer charge.
+    Step 1: Spreads large missing charge (from deleted protons) across the patch.
+    Step 2: Corrects the microscopic 4-decimal rounding error on the last atom.
+    """
+
+    # Spread extra charge across the entire patch
+    global_sum = sum(float(a.charge) for a in stitched_mol.atoms)
+    target_global = round(global_sum)
+    global_delta = target_global - global_sum
+    
+    res_atoms = [a for a in stitched_mol.atoms if a.res_n == target_res_num]
+    standard_names = ["N", "H", "CA", "HA", "CB", "HB1", "HB2", "CG", "HG1", "HG2", 
+                    "CD", "HD1", "HD2", "CE", "HE1", "HE2", "NZ", "O", "C"]
+    patch_atoms = [a for a in res_atoms if a.atom.strip() not in standard_names]
+
+    if abs(global_delta) > 0.00001 and patch_atoms:
+        offset = global_delta / len(patch_atoms)
+        for atom in patch_atoms:
+            atom.charge = float(atom.charge) + offset
+            atom.comment = getattr(atom, 'comment', '') + f" ; int balance ({offset:+.4f})"
+
+    # Find rounding errors due to floating point math
+    printed_sum = sum(round(atom.charge, 4) for atom in stitched_mol.atoms)
+    target_int = round(printed_sum)
+    rounding_error = target_int - printed_sum
+    
+    # If the rounded numbers don't sum to a perfect integer, fix the last atom
+    if abs(rounding_error) > 0.00005 and patch_atoms:
+        last_atom = patch_atoms[-1]
+        last_atom.charge += rounding_error
+
+    return stitched_mol
+
+
+def update_atom_types(stitched_mol, target_res_num, type_updates):
+    """
+    Updates the forcefield atom types for specific atoms (e.g., NZ -> NG311)
+    and appends a comment tracking the original type.
+    """
+    for atom in stitched_mol.atoms:
+        if atom.res_n == target_res_num and atom.atom.strip() in type_updates:
+            old_type = atom.type
+            new_type = type_updates[atom.atom.strip()]
+            atom.type = new_type
+            type_comment = f"; type changed from {old_type} to {new_type}"
+            if hasattr(atom, 'comment') and atom.comment:
+                atom.comment += f"  {type_comment}"
+            else:
+                atom.comment = type_comment
+                
     return stitched_mol

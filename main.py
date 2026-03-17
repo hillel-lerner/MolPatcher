@@ -4,7 +4,7 @@ from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, BuildPdb
 from mol_patcher.itp_io import ItpParser, BuildItp
 from mol_patcher.align_geom import PatchAligner
-from mol_patcher import mol_stitcher
+from mol_patcher import mol_stitcher, utilities
 
 def run_patch(pdb_file, res_id, chain, itp_file):
 
@@ -12,6 +12,9 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     cdir = os.path.dirname(os.path.abspath(__file__))
     pdb_path = os.path.join(cdir, 'pdbs', pdb_file)
     itp_path = os.path.join(cdir, 'itps', itp_file)
+    
+    # Extract the molecule name for the ITP file (e.g., "PROE" from "PROE.itp")
+    base_mol_name = itp_file.split('.')[0]
     
     # Load Data
     headers, target_atoms, ters, t_name = PdbParser.read_file(pdb_path)
@@ -22,7 +25,7 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     pfp_mol = Mol(name="PFP", records=pfp_atoms)
     mol_stitcher.get_pfp_itp(pfp_mol)
 
-    # Anchors
+    # Anchors (Reverted to the last working state for stable geometry)
     pfp_anchors = [
         pfp_mol.get_atom(1, " ", "PFP", "C10"),
         pfp_mol.get_atom(1, " ", "PFP", "C11"),
@@ -42,11 +45,36 @@ def run_patch(pdb_file, res_id, chain, itp_file):
         target_mol, aligned_pfp_atoms, target_anchors[0], target_anchors, pfp_mol
     )
 
-    # Save
+    # Balance charges
+    pfp_junction_charges = {"CD": -0.245, "CE": -0.006, "NZ": -0.092}
+    charge_sinks = ["HD1", "HD2", "HE1", "HE2", "CG"] 
+    stitched_mol = mol_stitcher.balance_charges(stitched_mol, res_id, pfp_junction_charges, charge_sinks)
+    stitched_mol = mol_stitcher.force_integer_charge(stitched_mol, res_id)
+
+
+    # Update NZ atom type from NH3 to NG311 and it's hydrogen HC to H
+    stitched_mol = mol_stitcher.update_atom_types(stitched_mol, res_id, type_updates={"NZ": "NG311", "HZ1": "H"})  
+    
+    # Save outputs
     out_pdb = os.path.join(cdir, 'pdbs', f"patched_{res_id}.pdb")
     out_itp = os.path.join(cdir, 'itps', f"patched_{res_id}.itp")
+    
     BuildPdb(out_pdb, stitched_mol.records, headers, ters).write_pdb()
-    BuildItp(stitched_mol, out_itp).write_itp()
+    
+    # Pass the required base_mol_name to BuildItp
+    BuildItp(stitched_mol, out_itp, base_mol_name).write_itp()
+    print(f"Successfully generated topology: {out_itp}")
+
+    box_size, applied_buffer = utilities.get_optimal_box_size(
+        stitched_mol.records, 
+        buffer_percent=0.33,
+        min_buffer_nm=3.0 
+    )
+    
+    print(f"\nSuccessfully generated topology: {out_itp}")
+    print(f"   --> Molecule Max Diagonal : {round(box_size - applied_buffer, 3)} nm")
+    print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
+    print(f"   --> Optimal Cubic Box     : {box_size} nm")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -63,6 +91,6 @@ if __name__ == "__main__":
             # For running outside of CLI
             pdb_file="step3_input.pdb", 
             res_id=136, 
-            chain=" ", 
+            chain=" ",
             itp_file="PROE.itp"
         )

@@ -49,43 +49,56 @@ class ItpParser:
         return atoms, bonds, pairs, angles, dihs
 
 class BuildItp:
-    def __init__(self, mol, filename):
-        """Initializes the builder with the molecule and destination path."""
+    def __init__(self, mol, filename, mol_name):
+        """Initializes the builder with the molecule, destination path, and strict mol_name."""
         self.mol = mol
         self.filename = filename
-
+        self.mol_name = mol_name
+    
     def write_itp(self):
-        with open(self.filename, 'w') as f:
-            f.write("[ moleculetype ]\n")
-            f.write(f"{self.mol.name:<10s} 3\n\n")
+        """Writes a GROMACS ITP file after ensuring internal indices are synced."""
+        # Trigger the Mol object's internal reindexing to sync a1, a2, etc.
+        self.mol.reindex()
 
+        with open(self.filename, 'w') as f:
+            # Molecule Header
+            f.write("[ moleculetype ]\n; name       nrexcl\n")
+            f.write(f"{self.mol_name:<10s} 3\n\n")
+
+            # Atoms Section
             if self.mol.atoms:
                 f.write("[ atoms ]\n; nr type resnr residue atom cgnr charge mass\n")
                 for atom in self.mol.atoms:
-                    f.write(f"{atom.number:>6d} {atom.type:>10s} {atom.res_n:>6d} {atom.res:>6s} "
-                            f"{atom.atom:>6s} {atom.cgnr:>6d} {atom.charge:>10.4f} {atom.mass:>10.4f}\n")
+                    # Check if the atom object has a comment, default to empty string if not
+                    comment = getattr(atom, 'comment', '') 
+                    f.write(f"{atom.number:>6d} {atom.type.strip():>10s} {atom.res_n:>6d} {atom.res:>6s} "
+                            f"{atom.atom:>6s} {atom.cgnr:>6d} {atom.charge:>10.4f} {atom.mass:>10.4f} {comment}\n")
                 f.write("\n")
 
-            # Bonds
+            # Bonds Section 
             if self.mol.bonds:
-                f.write("[ bonds ]\n")
-                for bond in self.mol.bonds:
-                    f.write(f"{bond.a1:5d} {bond.a2:5d} {bond.type:5d}\n")
+                f.write("[ bonds ]\n;  ai    aj  funct\n")
+                for b in self.mol.bonds:
+                    f.write(f"{b.a1:>7d} {b.a2:>7d} {b.type:>7d}\n")
+                f.write("\n")
 
-            # Pairs
+            # Pairs Section 
             if self.mol.pairs:
-                f.write("[ pairs ]\n")
-                for pair in self.mol.pairs:
-                    f.write(f"{pair.a1:5d} {pair.a2:5d} {pair.type:5d}\n")
-            
-            # Angles
-            if self.mol.angles:
-                f.write("[ angles ]\n")
-                for angle in self.mol.angles:
-                    f.write(f"{angle.a1:5d} {angle.a2:5d} {angle.a3:5d} {angle.type:5d}\n")
+                f.write("[ pairs ]\n;  ai    aj  funct\n")
+                for p in self.mol.pairs:
+                    f.write(f"{p.a1:>7d} {p.a2:>7d} {p.type:>7d}\n")
+                f.write("\n")
 
-            # Dihedrals
+            # Angles Section
+            if self.mol.angles:
+                f.write("[ angles ]\n;  ai    aj    ak  funct\n")
+                for a in self.mol.angles:
+                    f.write(f"{a.a1:>7d} {a.a2:>7d} {a.a3:>7d} {a.type:>7d}\n")
+                f.write("\n")
+
+            # Dihedrals Section 
             if self.mol.dihs:
-                f.write("[ dihedrals ]\n")
-                for dih in self.mol.dihs:
-                    f.write(f"{dih.a1:5d} {dih.a2:5d} {dih.a3:5d} {dih.a4:5d} {dih.type:5d}\n")
+                f.write("[ dihedrals ]\n;  ai    aj    ak    al  funct\n")
+                for d in self.mol.dihs:
+                    f.write(f"{d.a1:>7d} {d.a2:>7d} {d.a3:>7d} {d.a4:>7d} {d.type:>7d}\n")
+                f.write("\n")
