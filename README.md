@@ -66,5 +66,5 @@ In `mol_stitcher.py`, verify the junction bond (e.g., base N to patch C) and ass
 
 ## Project Roadmap
 
-* **Steric Clash Resolution**: Implementing automated ligand rotation to prevent steric clashes from occuring between the patch and the base molecule (protein) as a whole.
-* **Advanced Deletion**: Implementing network-connectivity logic to prune atoms more reliably than distance-based methods.
+* **High-Throughput Patching**: Implementing the patching of all viable lysines on a given protein/Fab.
+* **Steric Clash Resolution**: Implementing automated lysine rotation to prevent steric clashes from occuring between the patch and the base molecule (protein) as a whole via PyMol Wizard's Mutagenesis function.
