@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from scipy.spatial.distance import pdist
 
 def get_distance(at1, at2):
     """
@@ -13,3 +14,26 @@ def get_distance(at1, at2):
 def get_vector(coord1, coord2):
     """Returns the vector pointing from coord1 to coord2."""
     return np.array(coord2) - np.array(coord1)
+
+def get_optimal_box_size(records, buffer_percent=0.33, min_buffer_nm=3.0):
+    """
+    Calculates the longest diagonal of the molecule and adds a dynamic box size buffer.
+    The buffer scales with the molecule's size, but enforces a minimum buffer (2.0 nm) to satisfy PBC cutoffs.
+    Returns the dimension and the applied buffer in nanometers.
+    """
+    coords = np.array([[a.x, a.y, a.z] for a in records])
+    
+    # pdist calculates all pairwise distances
+    max_dist_angstroms = np.max(pdist(coords))
+    max_dist_nm = max_dist_angstroms / 10.0
+    
+    # Calculate the percentage-based buffer
+    calculated_buffer = max_dist_nm * buffer_percent
+    
+    # Enforce the minimum
+    final_buffer = max(calculated_buffer, min_buffer_nm)
+    
+    # Total size and round to 3 decimal places
+    optimal_size = round(max_dist_nm + final_buffer, 3)
+    
+    return optimal_size, round(final_buffer, 3)

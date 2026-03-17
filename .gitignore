@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Ignore old test files
+pdbs/pfp_inter.pdb
+itps/PROD_188.itp
+
 # Ignore specific test result files
 pdbs/butane_new.pdb
 pdbs/butane_gauche.pdb
