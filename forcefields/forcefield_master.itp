@@ -1899,8 +1899,9 @@
  CG2R66  CG2R61  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
  CG2R66  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp base
  CG2R66  CG2R66  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
- CT2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral
- HA2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral
+ CT2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral
+ HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral
+ CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix
  OC3C61  CC3162  CC3161   NC2D1     9  0.000000e+00  8.368000e-01      3
 [ dihedraltypes ]
 ; i	j	k	l	func	q0	Kq

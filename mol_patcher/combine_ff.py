@@ -58,8 +58,10 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
         " CT2    NG311   HGPAM1     5   114.000000   334.720000   0.000000   0.000000 ; rescued H angle\n"
     ]
     extra_dihs = [
-        " CT2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral\n",
-        " HA2    CT2    NG311   HGPAM1     9     0.000000     0.000000   1 ; rescued H dihedral\n"
+        " CT2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
+        " HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n"
+        # Multiplicity 1 with Phase 0.0 forces 180-degree trans state for the amide-omega dihedral .
+        " CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix\n"
     ]
     
     if "[ angletypes ]" not in mods:
