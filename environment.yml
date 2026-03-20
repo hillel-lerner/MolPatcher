@@ -1,0 +1,11 @@
+name: mol_patcher
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - biopython
+  - pymol-open-source
+  - pip
