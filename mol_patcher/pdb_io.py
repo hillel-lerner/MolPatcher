@@ -54,7 +54,7 @@ class PdbParser:
         except ValueError:
             return None
         
-class BuildPdb:
+class PdbBuilder:
 
     def __init__(self, new_pdb_name, atom_list, headers=None, ter_line=None):
         self.new_pdb_name = new_pdb_name

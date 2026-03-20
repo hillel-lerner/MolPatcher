@@ -8,7 +8,7 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 pdb_dir = os.path.join(project_root, 'pdbs')
 
-from mol_patcher.pdb_io import PdbParser, BuildPdb
+from mol_patcher.pdb_io import PdbParser, PdbBuilder
 
 def main():
     print("--- Running Test 01: PDB I/O Identity ---")
@@ -27,8 +27,8 @@ def main():
     print(f"  - Found {len(atoms)} atoms")
 
     print(f"Writing {outfile}...")
-    # BuildPdb expects (filename, atoms, headers, ter_line)
-    builder = BuildPdb(outfile, atoms, headers, ters)
+    # PdbBuilder expects (filename, atoms, headers, ter_line)
+    builder = PdbBuilder(outfile, atoms, headers, ters)
     builder.write_pdb()
     print("  - Identity write completed.")
 

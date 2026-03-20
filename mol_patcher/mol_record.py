@@ -74,8 +74,8 @@ class Mol:
     dihs: List[ItpDih] = field(default_factory=list)
     
     def load_itp(self, itp_path: str):
-        from .itp_io import ItpParser
-        a, b, p, ang, d = ItpParser.read_file(itp_path)
+        from .topology_io import TopologyParser
+        a, b, p, ang, d = TopologyParser.read_file(itp_path)
         self.atoms, self.bonds, self.pairs, self.angles, self.dihs = a, b, p, ang, d
 
     def get_atom(self, res_seq: int, chain: str, res_name: str, atom_name: str) -> PdbRecord:

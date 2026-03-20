@@ -12,7 +12,7 @@ def get_pfp_pdb():
 
 def get_pfp_itp(mol_obj):
     cdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    itp_path = os.path.join(cdir, 'itps', 'pfp_patch_new.itp')
+    itp_path = os.path.join(cdir, 'topology_files', 'pfp_patch_new.itp')
     mol_obj.load_itp(itp_path)
 
 def delete_atoms(base_records, target_anchors, extra_deletions=None):

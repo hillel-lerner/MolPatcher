@@ -1,6 +1,6 @@
 from .mol_record import ItpAtom, ItpBond, ItpAngle, ItpDih, ItpPair
 
-class ItpParser:
+class TopologyParser:
     @staticmethod
     def read_file(filepath):
         atoms, bonds, pairs, angles, dihs = [], [], [], [], []
@@ -48,7 +48,7 @@ class ItpParser:
 
         return atoms, bonds, pairs, angles, dihs
 
-class BuildItp:
+class TopologyBuilder:
     def __init__(self, mol, filename, mol_name):
         """Initializes the builder with the molecule, destination path, and strict mol_name."""
         self.mol = mol

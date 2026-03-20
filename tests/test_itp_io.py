@@ -6,9 +6,9 @@ project_root = os.path.dirname(current_script_dir)
 
 if project_root not in sys.path:
     sys.path.append(project_root)
-itp_dir = os.path.join(project_root, 'itps')
+itp_dir = os.path.join(project_root, 'topologies')
 
-from mol_patcher.itp_io import *
+from mol_patcher.topology_io import *
 from mol_patcher.mol_record import Mol 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     print(f"Reading {infile}...")
     
    
-    atoms, bonds, pairs, angles, dihs = ItpParser.read_file(infile)
+    atoms, bonds, pairs, angles, dihs = TopologyParser.read_file(infile)
 
     mol_obj = Mol("6oge_prob")
     mol_obj.atoms = atoms
@@ -34,7 +34,7 @@ def main():
     print(f"Writing {outfile}...")
    
    
-    builder = BuildItp(mol_obj, outfile)
+    builder = TopologyBuilder(mol_obj, outfile, mol_name='test')
     
 
     builder.write_itp() 

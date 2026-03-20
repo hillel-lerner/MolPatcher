@@ -11,7 +11,7 @@ if project_root not in sys.path:
 
 pdb_dir = os.path.join(project_root, 'pdbs')
 
-from mol_patcher.pdb_io import PdbParser, BuildPdb
+from mol_patcher.pdb_io import PdbParser, PdbBuilder
 from mol_patcher.align_geom import PatchAligner
 
 def main():
@@ -77,7 +77,7 @@ def main():
             final_atoms.append(atom)
 
     # Build and Save
-    BuildPdb(outfile, final_atoms, headers, ters).write_pdb()
+    PdbBuilder(outfile, final_atoms, headers, ters).write_pdb()
     print(f"Done. Gauche conformer saved to {outfile}")
 
 if __name__ == "__main__":

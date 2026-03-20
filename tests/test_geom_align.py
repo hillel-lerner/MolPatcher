@@ -9,7 +9,7 @@ if project_root not in sys.path:
 
 pdb_dir = os.path.join(project_root, 'pdbs')
 
-from mol_patcher.pdb_io import PdbParser, BuildPdb
+from mol_patcher.pdb_io import PdbParser, PdbBuilder
 from mol_patcher.align_geom import PatchAligner 
 
 def main():
@@ -52,7 +52,7 @@ def main():
 
     # 4. Write result
     print(f"Writing result to {os.path.basename(file_aligned)}...")
-    BuildPdb(file_aligned, atoms_aligned, headers, ters).write_pdb()
+    PdbBuilder(file_aligned, atoms_aligned, headers, ters).write_pdb()
 
     print("\n[Verification Success]")
 

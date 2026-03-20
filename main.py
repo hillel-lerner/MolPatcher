@@ -1,8 +1,8 @@
 import argparse
 import sys, os
 from mol_patcher.mol_record import Mol
-from mol_patcher.pdb_io import PdbParser, BuildPdb
-from mol_patcher.itp_io import ItpParser, BuildItp
+from mol_patcher.pdb_io import PdbParser, PdbBuilder
+from mol_patcher.topology_io import TopologyParser, TopologyBuilder
 from mol_patcher.align_geom import PatchAligner
 from mol_patcher import mol_stitcher, utilities
 
@@ -11,7 +11,7 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     # Paths (adjust to your structure)
     cdir = os.path.dirname(os.path.abspath(__file__))
     pdb_path = os.path.join(cdir, 'pdbs', pdb_file)
-    itp_path = os.path.join(cdir, 'itps', itp_file)
+    itp_path = os.path.join(cdir, 'topology_files', itp_file)
     
     # Extract the molecule name for the ITP file (e.g., "PROE" from "PROE.itp")
     base_mol_name = itp_file.split('.')[0]
@@ -66,12 +66,12 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     
     # Save outputs
     out_pdb = os.path.join(cdir, 'pdbs', f"patched_{res_id}.pdb")
-    out_itp = os.path.join(cdir, 'itps', f"patched_{res_id}.itp")
+    out_itp = os.path.join(cdir, 'topology_files', f"patched_{res_id}.itp")
     
-    BuildPdb(out_pdb, stitched_mol.records, headers, ters).write_pdb()
+    PdbBuilder(out_pdb, stitched_mol.records, headers, ters).write_pdb()
     
-    # Pass the required base_mol_name to BuildItp
-    BuildItp(stitched_mol, out_itp, base_mol_name).write_itp()
+    # Pass the required base_mol_name to TopologyBuilder
+    TopologyBuilder(stitched_mol, out_itp, base_mol_name).write_itp()
     print(f"Successfully generated topology: {out_itp}")
 
     box_size, applied_buffer = utilities.get_optimal_box_size(
