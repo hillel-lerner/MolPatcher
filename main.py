@@ -3,7 +3,7 @@ import sys, os
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
 from mol_patcher.topology_io import TopologyParser, TopologyBuilder
-from mol_patcher.align_geom import PatchAligner
+from mol_patcher.geometry import PatchAligner
 from mol_patcher import mol_stitcher, utilities
 
 def run_patch(pdb_file, res_id, chain, itp_file):

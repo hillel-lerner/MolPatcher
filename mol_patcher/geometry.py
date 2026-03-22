@@ -34,7 +34,7 @@ class PatchAligner:
         pfp_centered = pfp_anchor_coords - pfp_centroid
         target_centered = target_anchor_coords - target_centroid
 
-        self.rotation_object, rmsd = Rotation.align_vectors(target_centered, pfp_centered)
+        self.rotation_object, rmsd, *_ = Rotation.align_vectors(target_centered, pfp_centered)
         rotated_pfp_centroid = self.rotation_object.apply(pfp_centroid)
         self.translation_vector = target_centroid - rotated_pfp_centroid
 

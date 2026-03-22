@@ -12,7 +12,7 @@ if project_root not in sys.path:
 pdb_dir = os.path.join(project_root, 'pdbs')
 
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
-from mol_patcher.align_geom import PatchAligner
+from mol_patcher.geometry import PatchAligner
 
 def main():
     print("--- Running Test: Stitching Gauche Butane ---")
