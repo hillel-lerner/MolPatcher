@@ -17,8 +17,8 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     base_mol_name = itp_file.split('.')[0]
     
     # Load Data
-    headers, target_atoms, ters, t_name = PdbParser.read_file(pdb_path)
-    target_mol = Mol(name=t_name, records=target_atoms)
+    headers, tarload_pdbs, ters, t_name = PdbParser.read_file(pdb_path)
+    target_mol = Mol(name=t_name, records=tarload_pdbs)
     target_mol.load_itp(itp_path)
 
     pfp_atoms = mol_stitcher.get_pfp_pdb()
@@ -27,14 +27,14 @@ def run_patch(pdb_file, res_id, chain, itp_file):
 
     # Anchors (Reverted to the last working state for stable geometry)
     pfp_anchors = [
-        pfp_mol.get_atom(1, " ", "PFP", "C10"),
-        pfp_mol.get_atom(1, " ", "PFP", "C11"),
-        pfp_mol.get_atom(1, " ", "PFP", "N")
+        pfp_mol.load_pdb(1, " ", "PFP", "C10"),
+        pfp_mol.load_pdb(1, " ", "PFP", "C11"),
+        pfp_mol.load_pdb(1, " ", "PFP", "N")
     ]
     target_anchors = [
-        target_mol.get_atom(res_id, chain, "LYS", "CE"),
-        target_mol.get_atom(res_id, chain, "LYS", "CD"),
-        target_mol.get_atom(res_id, chain, "LYS", "NZ")
+        target_mol.load_pdb(res_id, chain, "LYS", "CE"),
+        target_mol.load_pdb(res_id, chain, "LYS", "CD"),
+        target_mol.load_pdb(res_id, chain, "LYS", "NZ")
     ]
 
     # Align & Stitch

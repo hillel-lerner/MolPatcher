@@ -78,7 +78,7 @@ class Mol:
         a, b, p, ang, d = TopologyParser.read_file(itp_path)
         self.atoms, self.bonds, self.pairs, self.angles, self.dihs = a, b, p, ang, d
 
-    def get_atom(self, res_seq: int, chain: str, res_name: str, atom_name: str) -> PdbRecord:
+    def load_pdb(self, res_seq: int, chain: str, res_name: str, atom_name: str) -> PdbRecord:
         for atom in self.records:
             if atom.res_seq == res_seq and atom.chain == chain and atom.res_name == res_name and atom.name == atom_name:
                 return atom
