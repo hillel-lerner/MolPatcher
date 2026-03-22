@@ -129,7 +129,7 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
 # Execute
 build_master_forcefield_complete(
     base_path="forcefields/6oge_all_forcefield.itp", 
-    pfp_path="forcefields/ff_pfp_donor.itp",
+    pfp_path="forcefields/ff_pfp.itp",
     pi_path="forcefields/ff_PRODE_E136.itp", 
     output_path="forcefields/forcefield_master.itp"
 )
