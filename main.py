@@ -1,10 +1,12 @@
 import argparse
 import sys, os
+
+from mol_patcher.stitcher import Stitcher, Patchloader
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
-from mol_patcher.topology_io import TopologyParser, TopologyBuilder
+from mol_patcher.topology_io import TopologyBuilder
 from mol_patcher.geometry import PatchAligner
-from mol_patcher import mol_stitcher, utilities
+from mol_patcher import utilities
 
 def run_patch(pdb_file, res_id, chain, itp_file):
 
@@ -16,64 +18,58 @@ def run_patch(pdb_file, res_id, chain, itp_file):
     # Extract the molecule name for the ITP file (e.g., "PROE" from "PROE.itp")
     base_mol_name = itp_file.split('.')[0]
     
-    # Load Data
-    headers, tarload_pdbs, ters, t_name = PdbParser.read_file(pdb_path)
-    target_mol = Mol(name=t_name, records=tarload_pdbs)
-    target_mol.load_itp(itp_path)
+    # 1. Load Patch Data via Patchloader
+    loader = Patchloader()
+    pfp_atoms = loader.get_pfp_pdb()
+    patch_mol = Mol("patch", pfp_atoms, [], [], [], [], [])
+    loader.get_pfp_itp(patch_mol)
 
-    pfp_atoms = mol_stitcher.get_pfp_pdb()
-    pfp_mol = Mol(name="PFP", records=pfp_atoms)
-    mol_stitcher.get_pfp_itp(pfp_mol)
+    # 2. Load Base Protein Data
+    headers, base_records, ters, t_name = PdbParser.read_file(pdb_path)
+    base_mol = Mol(name=t_name, records=base_records, atoms=[], bonds=[], pairs=[], angles=[], dihs=[])
+    base_mol.load_itp(itp_path)
 
-    # Anchors (Reverted to the last working state for stable geometry)
+    # 3. Locate Anchors
+    # Handle empty chains to ensure precise matching
+    chain_check = chain.strip() if chain.strip() else ""
+
+    target_anchors = []
+    for name in ["CE", "CD", "NZ"]:
+        anchor = next(r for r in base_mol.records 
+                    if r.res_seq == res_id 
+                    and r.name.strip() == name 
+                    and (not chain_check or r.chain.strip() == chain_check))
+        target_anchors.append(anchor)
+
     pfp_anchors = [
-        pfp_mol.load_pdb(1, " ", "PFP", "C10"),
-        pfp_mol.load_pdb(1, " ", "PFP", "C11"),
-        pfp_mol.load_pdb(1, " ", "PFP", "N")
-    ]
-    target_anchors = [
-        target_mol.load_pdb(res_id, chain, "LYS", "CE"),
-        target_mol.load_pdb(res_id, chain, "LYS", "CD"),
-        target_mol.load_pdb(res_id, chain, "LYS", "NZ")
+        next(r for r in patch_mol.records if r.name.strip() == "C10"),
+        next(r for r in patch_mol.records if r.name.strip() == "C11"),
+        next(r for r in patch_mol.records if r.name.strip() == "N")
     ]
 
-    # Align & Stitch
-    aligner = PatchAligner(pfp_mol.records, pfp_anchors, target_anchors)
+    # 4. Align the Patch
+    aligner = PatchAligner(patch_mol.records, pfp_anchors, target_anchors)
     aligned_pfp_atoms = aligner.implement_align()
 
-    stitched_mol = mol_stitcher.stitch_molecules(
-        target_mol, aligned_pfp_atoms, target_anchors[0], target_anchors, pfp_mol
+    # 5. Execute the Stitcher
+    # This automatically handles topology mapping, atom typing, and electrostatic balancing
+    stitcher = Stitcher(base_mol, patch_mol, target_res_id=res_id)
+    stitched_mol = stitcher.stitch_molecules(
+        aligned_patch_atoms=aligned_pfp_atoms, 
+        target_reference=target_anchors[0], 
+        target_anchors=target_anchors
     )
-
-    # Balance charges
-    pfp_junction_charges = {"CD": -0.245, "CE": -0.006, "NZ": -0.092}
-    charge_sinks = ["HD1", "HD2", "HE1", "HE2", "CG"] 
-    stitched_mol = mol_stitcher.balance_charges(stitched_mol, res_id, pfp_junction_charges, charge_sinks)
-    stitched_mol = mol_stitcher.force_integer_charge(stitched_mol, res_id)
-
-
-    # Update topology atom types
-    stitched_mol = mol_stitcher.update_atom_types(
-        stitched_mol, 
-        res_id, 
-        type_updates={
-            "NZ": "NG311",
-            "HZ1": "HGPAM1", 
-            "HZ2": "HGPAM1", 
-            "HZ3": "HGPAM1"
-        }
-    )  
     
-    # Save outputs
+    # 6. Save outputs
     out_pdb = os.path.join(cdir, 'pdbs', f"patched_{res_id}.pdb")
     out_itp = os.path.join(cdir, 'topology_files', f"patched_{res_id}.itp")
     
     PdbBuilder(out_pdb, stitched_mol.records, headers, ters).write_pdb()
-    
-    # Pass the required base_mol_name to TopologyBuilder
     TopologyBuilder(stitched_mol, out_itp, base_mol_name).write_itp()
+    
     print(f"Successfully generated topology: {out_itp}")
 
+    # 7. Box Sizing
     box_size, applied_buffer = utilities.get_optimal_box_size(
         stitched_mol.records, 
         buffer_percent=0.33,
