@@ -29,7 +29,7 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
                 current_sec = stripped
             elif stripped and not stripped.startswith(";"):
                 if current_sec and current_sec != "[ defaults ]":
-                    add_mod(current_sec, line, "added from pfp base")
+                    add_mod(current_sec, line, "added from pfp forcefield")
 
     # 2. Load PI's modifications
     current_sec = None
@@ -39,7 +39,7 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
             if stripped.startswith("[") and stripped.endswith("]"):
                 current_sec = stripped
             elif "MM" in line and current_sec:
-                add_mod(current_sec, line, "added by HL (link)")
+                add_mod(current_sec, line, "added by HL (junction)")
 
     # 3. Inject explicit atom types
     extra_atomtypes = [
@@ -59,11 +59,21 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
     ]
     extra_dihs = [
         " CT2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
-        " HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n"
+        " HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
         # Multiplicity 1 with Phase 0.0 forces 180-degree trans state for the amide-omega dihedral .
-        " CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix\n"
+        " CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix\n",
+        
+        # Dihedral 1: CT2 - NG311 - CG301 - CG321 (from synthetic polymer base)
+        " CT2      NG311   CG301   CG321     9  180.000000   10.460000          1 ; Added by HL (junction) dih 1 mult 1\n",
+        " CT2      NG311   CG301   CG321     9    0.000000    6.276000          2 ; Added by HL (junction) dih 1 mult 2\n",
+        " CT2      NG311   CG301   CG321     9    0.000000    2.092000          3 ; Added by HL (junction) dih 1 mult 3\n",
+        
+        # Dihedral 2: CT2 - NG311 - CG301 - OG311 (from model compound ethoxyethylaminopropanol parameters)
+        " CT2      NG311   CG301   OG311     9  180.000000    9.832400          1 ; Added by HL (junction) dih 2 mult 1\n",
+        " CT2      NG311   CG301   OG311     9  180.000000    0.292880          2 ; Added by HL (junction) dih 2 mult 2\n",
+        " CT2      NG311   CG301   OG311     9  180.000000    8.577200          3 ; Added by HL (junction) dih 2 mult 3\n"
     ]
-    
+
     if "[ angletypes ]" not in mods:
         mods["[ angletypes ]"] = []
     mods["[ angletypes ]"].extend(extra_angles)

@@ -54,33 +54,33 @@
     CPH1     6    12.0110     -0.050     A    3.20723538531e-01    2.092000e-01 
     CPH2     6    12.0110      0.250     A    3.20723538531e-01    2.092000e-01 
     CT2A     6    12.0110     -0.280     A    3.58141284692e-01    2.343040e-01 ;   3.38541512893e-01    4.184000e-02 
-    FGR1     9    18.9980     -0.083     A    3.02905564168e-01    5.020800e-01 ; added from pfp base
+    FGR1     9    18.9980     -0.083     A    3.02905564168e-01    5.020800e-01 ; added from pfp forcefield
     HCA1     1     1.0080      0.090     A    2.38760856462e-01    1.882800e-01 
     HCA2     1     1.0080      0.090     A    2.38760856462e-01    1.464400e-01 
     HCA3     1     1.0080      0.090     A    2.38760856462e-01    1.004160e-01 
     HCP1     1     1.0080      0.310     A    4.00013524445e-02    1.924640e-01 
-    HGA2     1     1.0080      0.090     A    2.38760856462e-01    1.464400e-01 ; added from pfp base
-    HGA3     1     1.0080      0.090     A    2.38760856462e-01    1.004160e-01 ; added from pfp base
-    HGP1     1     1.0080      0.459     A    4.00013524445e-02    1.924640e-01 ; added from pfp base
+    HGA2     1     1.0080      0.090     A    2.38760856462e-01    1.464400e-01 ; added from pfp forcefield
+    HGA3     1     1.0080      0.090     A    2.38760856462e-01    1.004160e-01 ; added from pfp forcefield
+    HGP1     1     1.0080      0.459     A    4.00013524445e-02    1.924640e-01 ; added from pfp forcefield
    CC2O1     6    12.0110      0.510     A    3.56359487256e-01    4.602400e-01 
    CC321     6    12.0110     -0.180     A    3.58141284692e-01    2.343040e-01 ;   3.38541512893e-01    4.184000e-02 
    CC331     6    12.0110     -0.270     A    3.63486677001e-01    3.263520e-01 ;   3.38541512893e-01    4.184000e-02 
-   CG301     6    12.0110     -0.519     A    3.56359487256e-01    1.338880e-01 ; added from pfp base
-   CG321     6    12.0110     -0.132     A    3.58141284692e-01    2.343040e-01 ; added from pfp base
-   CG331     6    12.0110     -0.253     A    3.65268474438e-01    3.263520e-01 ; added from pfp base
+   CG301     6    12.0110     -0.519     A    3.56359487256e-01    1.338880e-01 ; added from pfp forcefield
+   CG321     6    12.0110     -0.132     A    3.58141284692e-01    2.343040e-01 ; added from pfp forcefield
+   CG331     6    12.0110     -0.253     A    3.65268474438e-01    3.263520e-01 ; added from pfp forcefield
    NC2D1     7    14.0070     -0.470     A    3.29632525712e-01    8.368000e-01 ;   2.76178602624e-01    8.368000e-01 
-   NG311     7    14.0070     -0.092     A    3.56359487256e-01    1.882800e-01 ; added from pfp base
+   NG311     7    14.0070     -0.092     A    3.56359487256e-01    1.882800e-01 ; added from pfp forcefield
    OC2D1     8    15.9994     -0.510     A    3.02905564168e-01    5.020800e-01 ;   2.49451641079e-01    5.020800e-01 
    OC301     8    15.9994     -0.360     A    2.93996576986e-01    4.184000e-01 
    OC311     8    15.9994     -0.650     A    3.14487247504e-01    8.037464e-01 
-   OG301     8    15.9994      0.001     A    2.93996576986e-01    4.184000e-01 ; added from pfp base
-   OG311     8    15.9994     -0.446     A    3.14487247504e-01    8.037464e-01 ; added from pfp base
+   OG301     8    15.9994      0.001     A    2.93996576986e-01    4.184000e-01 ; added from pfp forcefield
+   OG311     8    15.9994     -0.446     A    3.14487247504e-01    8.037464e-01 ; added from pfp forcefield
   CC3161     6    12.0110      0.070     A    3.56359487256e-01    1.338880e-01 ;   3.38541512893e-01    4.184000e-02 
   CC3162     6    12.0110      0.270     A    3.56359487256e-01    1.338880e-01 ;   3.38541512893e-01    4.184000e-02 
   CC3163     6    12.0110      0.110     A    3.56359487256e-01    1.338880e-01 ;   3.38541512893e-01    4.184000e-02 
-  CG2R61     6    12.0110      0.276     A    3.55005321205e-01    2.928800e-01 ; added from pfp base
-  CG2R66     6    12.0110      0.096     A    3.38541512893e-01    2.928800e-01 ; added from pfp base
-  HGPAM1     1     1.0080      0.337     A    1.55907275675e-01    3.765600e-02 ; added from pfp base
+  CG2R61     6    12.0110      0.276     A    3.55005321205e-01    2.928800e-01 ; added from pfp forcefield
+  CG2R66     6    12.0110      0.096     A    3.38541512893e-01    2.928800e-01 ; added from pfp forcefield
+  HGPAM1     1     1.0080      0.337     A    1.55907275675e-01    3.765600e-02 ; added from pfp forcefield
   OC3C61     8    15.9994     -0.400     A    2.93996576986e-01    4.184000e-01 
  CLA       17   35.450000   -1.00    A   0.404468018036      0.6276       ; explicit addition
  HT         1   1.0080      0.417    A   4.00013524445e-02   1.924640e-01 ; explicit addition
@@ -128,7 +128,7 @@
     CT2     CT2     1  1.530000e-01  1.861880e+05
     CT2    CPH1     1  1.500000e-01  1.921544e+05
     CT2    CT2A     1  1.530000e-01  1.861880e+05
-    CT2   NG311     1  1.474000e-01  2.200784e+05 ; added by HL (link)
+    CT2   NG311     1  1.474000e-01  2.200784e+05 ; added by HL (junction)
     CT3     CT1     1  1.538000e-01  1.861880e+05
     CT3     CT2     1  1.528000e-01  1.861880e+05
     HA1     CT1     1  1.111000e-01  2.585712e+05
@@ -174,20 +174,20 @@
   CC321   OC311     1  1.420000e-01  3.581504e+05
   CC321  CC3163     1  1.490000e-01  1.861880e+05
   CC331    HCA3     1  1.111000e-01  2.694496e+05
-  CG301   CG321     1  1.538000e-01  1.861880e+05 ; added from pfp base
-  CG301   NG311     1  1.474000e-01  2.200784e+05 ; added from pfp base
-  CG301   OG301     1  1.415000e-01  3.012480e+05 ; added from pfp base
-  CG301   OG311     1  1.420000e-01  3.581504e+05 ; added from pfp base
-  CG321    HGA2     1  1.111000e-01  2.585712e+05 ; added from pfp base
-  CG321   CG331     1  1.528000e-01  1.861880e+05 ; added from pfp base
-  CG321   NG311     1  1.474000e-01  2.200784e+05 ; added from pfp base
-  CG331    HGA3     1  1.111000e-01  2.694496e+05 ; added from pfp base
+  CG301   CG321     1  1.538000e-01  1.861880e+05 ; added from pfp forcefield
+  CG301   NG311     1  1.474000e-01  2.200784e+05 ; added from pfp forcefield
+  CG301   OG301     1  1.415000e-01  3.012480e+05 ; added from pfp forcefield
+  CG301   OG311     1  1.420000e-01  3.581504e+05 ; added from pfp forcefield
+  CG321    HGA2     1  1.111000e-01  2.585712e+05 ; added from pfp forcefield
+  CG321   CG331     1  1.528000e-01  1.861880e+05 ; added from pfp forcefield
+  CG321   NG311     1  1.474000e-01  2.200784e+05 ; added from pfp forcefield
+  CG331    HGA3     1  1.111000e-01  2.694496e+05 ; added from pfp forcefield
   NC2D1    HCP1     1  9.970000e-02  3.681920e+05
   NC2D1   CC2O1     1  1.345000e-01  3.096160e+05
   NC2D1  CC3161     1  1.430000e-01  2.677760e+05
-  NG311  HGPAM1     1  1.019000e-01  3.747190e+05 ; added from pfp base
+  NG311  HGPAM1     1  1.019000e-01  3.747190e+05 ; added from pfp forcefield
   OC311    HCP1     1  9.600000e-02  4.560560e+05
-  OG311    HGP1     1  9.600000e-02  4.560560e+05 ; added from pfp base
+  OG311    HGP1     1  9.600000e-02  4.560560e+05 ; added from pfp forcefield
  CC3161    HCA1     1  1.111000e-01  2.585712e+05
  CC3161   OC301     1  1.415000e-01  3.012480e+05
  CC3161   OC311     1  1.410000e-01  3.430880e+05
@@ -200,10 +200,10 @@
  CC3162  OC3C61     1  1.425000e-01  3.012480e+05
  CC3163    HCA1     1  1.111000e-01  2.585712e+05
  CC3163  OC3C61     1  1.425000e-01  3.012480e+05
- CG2R61   OG301     1  1.382000e-01  1.924640e+05 ; added from pfp base
- CG2R61  CG2R66     1  1.370000e-01  2.552240e+05 ; added from pfp base
- CG2R66    FGR1     1  1.358000e-01  3.347200e+05 ; added from pfp base
- CG2R66  CG2R66     1  1.370000e-01  2.552240e+05 ; added from pfp base
+ CG2R61   OG301     1  1.382000e-01  1.924640e+05 ; added from pfp forcefield
+ CG2R61  CG2R66     1  1.370000e-01  2.552240e+05 ; added from pfp forcefield
+ CG2R66    FGR1     1  1.358000e-01  3.347200e+05 ; added from pfp forcefield
+ CG2R66  CG2R66     1  1.370000e-01  2.552240e+05 ; added from pfp forcefield
 [ pairtypes ]
 ; i	j	func	sigma1-4	epsilon1-4
 
@@ -789,15 +789,15 @@
    HCP1  CC3161     1  1.89271432669e-01  8.97368027066e-02 
    HCP1  CC3162     1  1.89271432669e-01  8.97368027066e-02 
    HCP1  CC3163     1  1.89271432669e-01  8.97368027066e-02 
-   HGA2   CG301     1  2.88651184677e-01  7.82754725313e-02 ; added from pfp base
-   HGA2   CG321     1  2.88651184677e-01  7.82754725313e-02 ; added from pfp base
-   HGA2   CG331     1  2.88651184677e-01  7.82754725313e-02 ; added from pfp base
-   HGA3   CG301     1  2.88651184677e-01  6.48182492821e-02 ; added from pfp base
-   HGA3   CG321     1  2.88651184677e-01  6.48182492821e-02 ; added from pfp base
-   HGA3   CG331     1  2.88651184677e-01  6.48182492821e-02 ; added from pfp base
-   HGP1   CG301     1  1.89271432669e-01  8.97368027066e-02 ; added from pfp base
-   HGP1   CG321     1  1.89271432669e-01  8.97368027066e-02 ; added from pfp base
-   HGP1   CG331     1  1.89271432669e-01  8.97368027066e-02 ; added from pfp base
+   HGA2   CG301     1  2.88651184677e-01  7.82754725313e-02 ; added from pfp forcefield
+   HGA2   CG321     1  2.88651184677e-01  7.82754725313e-02 ; added from pfp forcefield
+   HGA2   CG331     1  2.88651184677e-01  7.82754725313e-02 ; added from pfp forcefield
+   HGA3   CG301     1  2.88651184677e-01  6.48182492821e-02 ; added from pfp forcefield
+   HGA3   CG321     1  2.88651184677e-01  6.48182492821e-02 ; added from pfp forcefield
+   HGA3   CG331     1  2.88651184677e-01  6.48182492821e-02 ; added from pfp forcefield
+   HGP1   CG301     1  1.89271432669e-01  8.97368027066e-02 ; added from pfp forcefield
+   HGP1   CG321     1  1.89271432669e-01  8.97368027066e-02 ; added from pfp forcefield
+   HGP1   CG331     1  1.89271432669e-01  8.97368027066e-02 ; added from pfp forcefield
   CC2O1       N     1  3.42996006484e-01  1.38767581228e-02 
   CC2O1       O     1  3.02905564168e-01  4.80705002262e-01 
   CC2O1     CP1     1  3.47450500075e-01  1.38767581228e-01 
@@ -876,24 +876,24 @@
   CC331   OC301     1  3.16269044940e-01  1.32309697301e-01 
   CC331   OC311     1  3.26514380198e-01  1.83381431383e-01 
   CC331  OC3C61     1  3.16269044940e-01  1.32309697301e-01 
-  CG301    FGR1     1  3.20723538531e-01  1.44938011577e-01 ; added from pfp base
-  CG301   CG301     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp base
-  CG301   CG321     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp base
-  CG301   CG331     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp base
-  CG301   NG311     1  3.47450500075e-01  8.87560431745e-02 ; added from pfp base
-  CG301   OG301     1  3.16269044940e-01  1.32309697301e-01 ; added from pfp base
-  CG301   OG311     1  3.26514380198e-01  1.83381431383e-01 ; added from pfp base
-  CG321    FGR1     1  3.20723538531e-01  1.44938011577e-01 ; added from pfp base
-  CG321   CG321     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp base
-  CG321   CG331     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp base
-  CG321   NG311     1  3.47450500075e-01  8.87560431745e-02 ; added from pfp base
-  CG321   OG301     1  3.16269044940e-01  1.32309697301e-01 ; added from pfp base
-  CG321   OG311     1  3.26514380198e-01  1.83381431383e-01 ; added from pfp base
-  CG331    FGR1     1  3.20723538531e-01  1.44938011577e-01 ; added from pfp base
-  CG331   CG331     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp base
-  CG331   NG311     1  3.47450500075e-01  8.87560431745e-02 ; added from pfp base
-  CG331   OG301     1  3.16269044940e-01  1.32309697301e-01 ; added from pfp base
-  CG331   OG311     1  3.26514380198e-01  1.83381431383e-01 ; added from pfp base
+  CG301    FGR1     1  3.20723538531e-01  1.44938011577e-01 ; added from pfp forcefield
+  CG301   CG301     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp forcefield
+  CG301   CG321     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp forcefield
+  CG301   CG331     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp forcefield
+  CG301   NG311     1  3.47450500075e-01  8.87560431745e-02 ; added from pfp forcefield
+  CG301   OG301     1  3.16269044940e-01  1.32309697301e-01 ; added from pfp forcefield
+  CG301   OG311     1  3.26514380198e-01  1.83381431383e-01 ; added from pfp forcefield
+  CG321    FGR1     1  3.20723538531e-01  1.44938011577e-01 ; added from pfp forcefield
+  CG321   CG321     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp forcefield
+  CG321   CG331     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp forcefield
+  CG321   NG311     1  3.47450500075e-01  8.87560431745e-02 ; added from pfp forcefield
+  CG321   OG301     1  3.16269044940e-01  1.32309697301e-01 ; added from pfp forcefield
+  CG321   OG311     1  3.26514380198e-01  1.83381431383e-01 ; added from pfp forcefield
+  CG331    FGR1     1  3.20723538531e-01  1.44938011577e-01 ; added from pfp forcefield
+  CG331   CG331     1  3.38541512893e-01  4.18400000000e-02 ; added from pfp forcefield
+  CG331   NG311     1  3.47450500075e-01  8.87560431745e-02 ; added from pfp forcefield
+  CG331   OG301     1  3.16269044940e-01  1.32309697301e-01 ; added from pfp forcefield
+  CG331   OG311     1  3.26514380198e-01  1.83381431383e-01 ; added from pfp forcefield
   NC2D1       O     1  2.62815121851e-01  6.48182492821e-01 
   NC2D1       S     1  3.16269044940e-01  1.25520000000e+00 
   NC2D1      NY     1  3.02905564168e-01  8.36800000000e-01 
@@ -1016,15 +1016,15 @@
  CC3163   OC311     1  3.26514380198e-01  1.83381431383e-01 
  CC3163  CC3163     1  3.38541512893e-01  4.18400000000e-02 
  CC3163  OC3C61     1  3.16269044940e-01  1.32309697301e-01 
- CG2R61   CG301     1  3.46773417049e-01  1.10698234855e-01 ; added from pfp base
- CG2R61   CG321     1  3.46773417049e-01  1.10698234855e-01 ; added from pfp base
- CG2R61   CG331     1  3.46773417049e-01  1.10698234855e-01 ; added from pfp base
- CG2R66   CG301     1  3.38541512893e-01  1.10698234855e-01 ; added from pfp base
- CG2R66   CG321     1  3.38541512893e-01  1.10698234855e-01 ; added from pfp base
- CG2R66   CG331     1  3.38541512893e-01  1.10698234855e-01 ; added from pfp base
- HGPAM1   CG301     1  2.47224394284e-01  3.96929091904e-02 ; added from pfp base
- HGPAM1   CG321     1  2.47224394284e-01  3.96929091904e-02 ; added from pfp base
- HGPAM1   CG331     1  2.47224394284e-01  3.96929091904e-02 ; added from pfp base
+ CG2R61   CG301     1  3.46773417049e-01  1.10698234855e-01 ; added from pfp forcefield
+ CG2R61   CG321     1  3.46773417049e-01  1.10698234855e-01 ; added from pfp forcefield
+ CG2R61   CG331     1  3.46773417049e-01  1.10698234855e-01 ; added from pfp forcefield
+ CG2R66   CG301     1  3.38541512893e-01  1.10698234855e-01 ; added from pfp forcefield
+ CG2R66   CG321     1  3.38541512893e-01  1.10698234855e-01 ; added from pfp forcefield
+ CG2R66   CG331     1  3.38541512893e-01  1.10698234855e-01 ; added from pfp forcefield
+ HGPAM1   CG301     1  2.47224394284e-01  3.96929091904e-02 ; added from pfp forcefield
+ HGPAM1   CG321     1  2.47224394284e-01  3.96929091904e-02 ; added from pfp forcefield
+ HGPAM1   CG331     1  2.47224394284e-01  3.96929091904e-02 ; added from pfp forcefield
 [ angletypes ]
 ; i	j	k	func	th0	Kth	s0	Kub
 
@@ -1120,7 +1120,7 @@
     CT2     CT2      CC     5  1.0800000e+02  4.3513600e+02  0.0000000e+00  0.0000000e+00
     CT2     CT2     CT1     5  1.1350000e+02  4.8827280e+02  2.5610000e-01  9.3386880e+03
     CT2     CT2     CT2     5  1.1360000e+02  4.8827280e+02  2.5610000e-01  9.3386880e+03
-    CT2     CT2   NG311     5  1.1220000e+02  3.6568160e+02  0.0000000e+00  0.0000000e+00 ; added by HL (link)
+    CT2     CT2   NG311     5  1.1220000e+02  3.6568160e+02  0.0000000e+00  0.0000000e+00 ; added by HL (junction)
     CT2     NC2       C     5  1.2000000e+02  5.2132640e+02  0.0000000e+00  0.0000000e+00
     CT2     NH1       C     5  1.2000000e+02  4.1840000e+02  0.0000000e+00  0.0000000e+00
     CT2    CPH1    CPH1     5  1.3000000e+02  3.8325440e+02  0.0000000e+00  0.0000000e+00
@@ -1219,8 +1219,8 @@
    HCA2   CC321   OC311     5  1.0889000e+02  4.6024000e+02  0.0000000e+00  0.0000000e+00
    HCA3   CC331    HCA3     5  1.0840000e+02  2.9706400e+02  1.8020000e-01  4.5187200e+03
    HCP1   NC2D1   CC2O1     5  1.2300000e+02  2.8451200e+02  0.0000000e+00  0.0000000e+00
-   HGA2   CG321    HGA2     5  1.0900000e+02  2.9706400e+02  1.8020000e-01  4.5187200e+03 ; added from pfp base
-   HGA3   CG331    HGA3     5  1.0840000e+02  2.9706400e+02  1.8020000e-01  4.5187200e+03 ; added from pfp base
+   HGA2   CG321    HGA2     5  1.0900000e+02  2.9706400e+02  1.8020000e-01  4.5187200e+03 ; added from pfp forcefield
+   HGA3   CG331    HGA3     5  1.0840000e+02  2.9706400e+02  1.8020000e-01  4.5187200e+03 ; added from pfp forcefield
   CC2O1   CC331    HCA3     5  1.0950000e+02  2.7614400e+02  2.1630000e-01  2.5104000e+04
   CC321     CT1       C     5  1.0800000e+02  4.3513600e+02  0.0000000e+00  0.0000000e+00
   CC321   CC2O1   NC2D1     5  1.1650000e+02  4.1840000e+02  2.4500000e-01  4.1840000e+04
@@ -1228,34 +1228,34 @@
   CC321   OC311    HCP1     5  1.0900000e+02  4.1840000e+02  0.0000000e+00  0.0000000e+00
   CC321  CC3163    HCA1     5  1.1010000e+02  2.8869600e+02  2.1790000e-01  1.8853104e+04
   CC321  CC3163  OC3C61     5  1.0900000e+02  3.7656000e+02  0.0000000e+00  0.0000000e+00
-  CG301   CG321    HGA2     5  1.1010000e+02  2.2175200e+02  2.1790000e-01  1.8853104e+04 ; added from pfp base
-  CG301   CG321   CG331     5  1.1350000e+02  5.4684880e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG301   NG311     CT2     5  1.0960000e+02  3.3890400e+02  0.0000000e+00  0.0000000e+00 ; added by HL (link)
-  CG301   NG311   CG321     5  1.0960000e+02  3.3890400e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG301   NG311  HGPAM1     5  1.1100000e+02  2.9288000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG301   OG311    HGP1     5  1.0600000e+02  4.1840000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG321   CG301   NG311     5  1.1000000e+02  3.6568160e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG321   CG301   OG301     5  1.1450000e+02  3.8074400e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG321   CG301   OG311     5  1.1010000e+02  6.3345760e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG321   CG331    HGA3     5  1.1010000e+02  2.8953280e+02  2.1790000e-01  1.8853104e+04 ; added from pfp base
-  CG321   NG311  HGPAM1     5  1.1100000e+02  2.9288000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  CG331   CG321    HGA2     5  1.1010000e+02  2.8953280e+02  2.1790000e-01  1.8853104e+04 ; added from pfp base
-  CG331   CG321   NG311     5  1.1220000e+02  3.6568160e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
+  CG301   CG321    HGA2     5  1.1010000e+02  2.2175200e+02  2.1790000e-01  1.8853104e+04 ; added from pfp forcefield
+  CG301   CG321   CG331     5  1.1350000e+02  5.4684880e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG301   NG311     CT2     5  1.0960000e+02  3.3890400e+02  0.0000000e+00  0.0000000e+00 ; added by HL (junction)
+  CG301   NG311   CG321     5  1.0960000e+02  3.3890400e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG301   NG311  HGPAM1     5  1.1100000e+02  2.9288000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG301   OG311    HGP1     5  1.0600000e+02  4.1840000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG321   CG301   NG311     5  1.1000000e+02  3.6568160e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG321   CG301   OG301     5  1.1450000e+02  3.8074400e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG321   CG301   OG311     5  1.1010000e+02  6.3345760e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG321   CG331    HGA3     5  1.1010000e+02  2.8953280e+02  2.1790000e-01  1.8853104e+04 ; added from pfp forcefield
+  CG321   NG311  HGPAM1     5  1.1100000e+02  2.9288000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  CG331   CG321    HGA2     5  1.1010000e+02  2.8953280e+02  2.1790000e-01  1.8853104e+04 ; added from pfp forcefield
+  CG331   CG321   NG311     5  1.1220000e+02  3.6568160e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
   NC2D1   CC2O1   CC331     5  1.1650000e+02  6.6944000e+02  0.0000000e+00  0.0000000e+00
   NC2D1   CC2O1   OC2D1     5  1.2250000e+02  6.6944000e+02  0.0000000e+00  0.0000000e+00
   NC2D1  CC3161    HCA1     5  1.0800000e+02  4.0166400e+02  0.0000000e+00  0.0000000e+00
   NC2D1  CC3162  CC3161     5  1.1350000e+02  5.8576000e+02  0.0000000e+00  0.0000000e+00
   NC2D1  CC3162  OC3C61     5  1.1000000e+02  7.5312000e+02  0.0000000e+00  0.0000000e+00
-  NG311     CT2     HA2     5  1.0950000e+02  2.7112320e+02  2.1300000e-01  4.1840000e+04 ; added by HL (link)
-  NG311   CG301   OG301     5  1.1252000e+02  7.5161376e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  NG311   CG301   OG311     5  1.1251640e+02  7.5161376e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
-  NG311   CG321    HGA2     5  1.0950000e+02  2.7112320e+02  2.1300000e-01  4.1840000e+04 ; added from pfp base
+  NG311     CT2     HA2     5  1.0950000e+02  2.7112320e+02  2.1300000e-01  4.1840000e+04 ; added by HL (junction)
+  NG311   CG301   OG301     5  1.1252000e+02  7.5161376e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  NG311   CG301   OG311     5  1.1251640e+02  7.5161376e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+  NG311   CG321    HGA2     5  1.0950000e+02  2.7112320e+02  2.1300000e-01  4.1840000e+04 ; added from pfp forcefield
   OC2D1   CC2O1   CC331     5  1.2100000e+02  6.6944000e+02  0.0000000e+00  0.0000000e+00
   OC301  CC3161  CC3161     5  1.0900000e+02  3.7656000e+02  0.0000000e+00  0.0000000e+00
   OC301  CC3161  CC3163     5  1.0900000e+02  3.7656000e+02  0.0000000e+00  0.0000000e+00
   OC301  CC3162  CC3161     5  1.0500000e+02  3.7656000e+02  0.0000000e+00  0.0000000e+00
   OC301  CC3162  OC3C61     5  1.1200000e+02  7.5312000e+02  0.0000000e+00  0.0000000e+00
-  OG301   CG301   OG311     5  1.1650000e+02  3.7656000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
+  OG301   CG301   OG311     5  1.1650000e+02  3.7656000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
  CC3161   NC2D1    HCP1     5  1.1700000e+02  2.9288000e+02  0.0000000e+00  0.0000000e+00
  CC3161   NC2D1   CC2O1     5  1.2000000e+02  4.1840000e+02  0.0000000e+00  0.0000000e+00
  CC3161   OC301  CC3162     5  1.0920000e+02  4.1840000e+02  0.0000000e+00  0.0000000e+00
@@ -1281,13 +1281,13 @@
  CC3163  CC3161    HCA1     5  1.1010000e+02  2.8869600e+02  2.1790000e-01  1.8853104e+04
  CC3163  CC3161   OC311     5  1.1010000e+02  6.3345760e+02  0.0000000e+00  0.0000000e+00
  CC3163  OC3C61  CC3162     5  1.0970000e+02  7.9496000e+02  0.0000000e+00  0.0000000e+00
- CG2R61   OG301   CG301     5  1.0800000e+02  5.4392000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
- CG2R61  CG2R66    FGR1     5  1.1875000e+02  5.0208000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
- CG2R61  CG2R66  CG2R66     5  1.2250000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp base
- CG2R66  CG2R61   OG301     5  1.2000000e+02  9.2048000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
- CG2R66  CG2R61  CG2R66     5  1.1700000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp base
- CG2R66  CG2R66    FGR1     5  1.1875000e+02  5.0208000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp base
- CG2R66  CG2R66  CG2R66     5  1.2250000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp base
+ CG2R61   OG301   CG301     5  1.0800000e+02  5.4392000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+ CG2R61  CG2R66    FGR1     5  1.1875000e+02  5.0208000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+ CG2R61  CG2R66  CG2R66     5  1.2250000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp forcefield
+ CG2R66  CG2R61   OG301     5  1.2000000e+02  9.2048000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+ CG2R66  CG2R61  CG2R66     5  1.1700000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp forcefield
+ CG2R66  CG2R66    FGR1     5  1.1875000e+02  5.0208000e+02  0.0000000e+00  0.0000000e+00 ; added from pfp forcefield
+ CG2R66  CG2R66  CG2R66     5  1.2250000e+02  3.3472000e+02  2.4162000e-01  2.9288000e+04 ; added from pfp forcefield
  CT2    NG311   HGPAM1     5   114.000000   334.720000   0.000000   0.000000 ; rescued H angle
 [ dihedraltypes ]
 ; i	j	k	l	func	phi0	Kphi	mult
@@ -1562,7 +1562,7 @@
     CT2     CT2     CT2     HA2     9  0.000000e+00  7.949600e-01      3
     CT2     CT2     CT2     NC2     9  0.000000e+00  7.949600e-01      3
     CT2     CT2     CT2     NH3     9  0.000000e+00  7.949600e-01      3
-    CT2     CT2     CT2   NG311     9  0.000000e+00  7.949600e-01      3 ; added by HL (link)
+    CT2     CT2     CT2   NG311     9  0.000000e+00  7.949600e-01      3 ; added by HL (junction)
     CT2     CT2     NC2       C     9  1.800000e+02  0.000000e+00      6
     CT2     CT2     NC2      HC     9  1.800000e+02  0.000000e+00      6
     CT2     CT2     NH3      HC     9  0.000000e+00  4.184000e-01      3
@@ -1575,9 +1575,9 @@
     CT2    CT2A     CT1     NH1     9  0.000000e+00  1.255200e+00      1
     CT2    CT2A     CT1     NH1     9  0.000000e+00  1.464400e+00      2
     CT2    CT2A     CT1     NH1     9  0.000000e+00  7.363840e+00      3
-    CT2   CT2     NG311   CG301     9  0.000000e+00  3.430880e+00      2 ; added by HL (link)
-    CT2   CT2     NG311   CG301     9  0.000000e+00  4.267680e+00      3 ; added by HL (link)
-    CT2   CT2     NG311   CG301     9  1.800000e+02  5.941280e+00      1 ; added by HL (link)
+    CT2   CT2     NG311   CG301     9  0.000000e+00  3.430880e+00      2 ; added by HL (junction)
+    CT2   CT2     NG311   CG301     9  0.000000e+00  4.267680e+00      3 ; added by HL (junction)
+    CT2   CT2     NG311   CG301     9  1.800000e+02  5.941280e+00      1 ; added by HL (junction)
     CT3       S     CT2     CT2     9  0.000000e+00  1.548080e+00      3
     CT3       S     CT2     CT2     9  1.800000e+02  1.004160e+00      1
     CT3     CT1     CT1     NH1     9  0.000000e+00  2.468560e+00      3
@@ -1701,7 +1701,7 @@
    CT2A     CT1       C       N     9  0.000000e+00  0.000000e+00      1
    CT2A     CT1       C       O     9  0.000000e+00  5.857600e+00      1
    CT2A     CT1       C     NH1     9  0.000000e+00  0.000000e+00      1
-   FGR1  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.750669e+01      2 ; added from pfp base
+   FGR1  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.750669e+01      2 ; added from pfp forcefield
    HCA1  CC3161  CC3161    HCA1     9  0.000000e+00  8.368000e-01      3
    HCA1  CC3161  CC3161   NC2D1     9  0.000000e+00  8.368000e-01      3
    HCA1  CC3161  CC3161   OC311     9  0.000000e+00  5.857600e-01      3
@@ -1740,9 +1740,9 @@
    HCP1   NC2D1  CC3162  OC3C61     9  0.000000e+00  0.000000e+00      1
    HCP1   OC311   CC321    HCA2     9  0.000000e+00  7.531200e-01      3
    HCP1   OC311  CC3161    HCA1     9  0.000000e+00  7.531200e-01      3
-   HGA2   CG321   CG331    HGA3     9  0.000000e+00  6.694400e-01      3 ; added from pfp base
-   HGA2   CG321   NG311   CG301     9  1.800000e+02  0.000000e+00      3 ; added from pfp base
-   HGA2   CG321   NG311  HGPAM1     9  0.000000e+00  2.092000e-01      3 ; added from pfp base
+   HGA2   CG321   CG331    HGA3     9  0.000000e+00  6.694400e-01      3 ; added from pfp forcefield
+   HGA2   CG321   NG311   CG301     9  1.800000e+02  0.000000e+00      3 ; added from pfp forcefield
+   HGA2   CG321   NG311  HGPAM1     9  0.000000e+00  2.092000e-01      3 ; added from pfp forcefield
   CC2O1   CC321     CT1       C     9  0.000000e+00  8.368000e-01      3
   CC2O1   NC2D1  CC3161    HCA1     9  0.000000e+00  0.000000e+00      1
   CC2O1   NC2D1  CC3161  CC3161     9  1.800000e+02  2.092000e+00      1
@@ -1757,22 +1757,22 @@
   CC321  CC3163  CC3161   OC301     9  0.000000e+00  8.368000e-01      3
   CC321  CC3163  CC3161   OC311     9  0.000000e+00  8.368000e-01      3
   CC321  CC3163  OC3C61  CC3162     9  0.000000e+00  8.368000e-01      3
-  CG301   CG321   CG331    HGA3     9  0.000000e+00  6.694400e-01      3 ; added from pfp base
-  CG321   CG301   NG311   CG321     9  0.000000e+00  2.092000e+00      3 ; added from pfp base
-  CG321   CG301   NG311   CG321     9  0.000000e+00  6.276000e+00      2 ; added from pfp base
-  CG321   CG301   NG311   CG321     9  1.800000e+02  1.046000e+01      1 ; added from pfp base
-  CG321   CG301   NG311  HGPAM1     9  0.000000e+00  1.255200e-01      2 ; added from pfp base
-  CG321   CG301   NG311  HGPAM1     9  0.000000e+00  4.184000e-01      3 ; added from pfp base
-  CG321   CG301   OG301  CG2R61     9  0.000000e+00  1.004160e+00      1 ; added from pfp base
-  CG321   CG301   OG301  CG2R61     9  0.000000e+00  1.213360e+00      2 ; added from pfp base
-  CG321   CG301   OG301  CG2R61     9  0.000000e+00  8.368000e-02      3 ; added from pfp base
-  CG321   CG301   OG311    HGP1     9  0.000000e+00  1.004160e+00      3 ; added from pfp base
-  CG321   CG301   OG311    HGP1     9  0.000000e+00  4.727920e+00      1 ; added from pfp base
-  CG321   CG301   OG311    HGP1     9  0.000000e+00  5.857600e-01      2 ; added from pfp base
-  CG331   CG321   NG311   CG301     9  0.000000e+00  3.430880e+00      2 ; added from pfp base
-  CG331   CG321   NG311   CG301     9  0.000000e+00  4.267680e+00      3 ; added from pfp base
-  CG331   CG321   NG311   CG301     9  1.800000e+02  5.941280e+00      1 ; added from pfp base
-  CG331   CG321   NG311  HGPAM1     9  0.000000e+00  1.255200e+00      3 ; added from pfp base
+  CG301   CG321   CG331    HGA3     9  0.000000e+00  6.694400e-01      3 ; added from pfp forcefield
+  CG321   CG301   NG311   CG321     9  0.000000e+00  2.092000e+00      3 ; added from pfp forcefield
+  CG321   CG301   NG311   CG321     9  0.000000e+00  6.276000e+00      2 ; added from pfp forcefield
+  CG321   CG301   NG311   CG321     9  1.800000e+02  1.046000e+01      1 ; added from pfp forcefield
+  CG321   CG301   NG311  HGPAM1     9  0.000000e+00  1.255200e-01      2 ; added from pfp forcefield
+  CG321   CG301   NG311  HGPAM1     9  0.000000e+00  4.184000e-01      3 ; added from pfp forcefield
+  CG321   CG301   OG301  CG2R61     9  0.000000e+00  1.004160e+00      1 ; added from pfp forcefield
+  CG321   CG301   OG301  CG2R61     9  0.000000e+00  1.213360e+00      2 ; added from pfp forcefield
+  CG321   CG301   OG301  CG2R61     9  0.000000e+00  8.368000e-02      3 ; added from pfp forcefield
+  CG321   CG301   OG311    HGP1     9  0.000000e+00  1.004160e+00      3 ; added from pfp forcefield
+  CG321   CG301   OG311    HGP1     9  0.000000e+00  4.727920e+00      1 ; added from pfp forcefield
+  CG321   CG301   OG311    HGP1     9  0.000000e+00  5.857600e-01      2 ; added from pfp forcefield
+  CG331   CG321   NG311   CG301     9  0.000000e+00  3.430880e+00      2 ; added from pfp forcefield
+  CG331   CG321   NG311   CG301     9  0.000000e+00  4.267680e+00      3 ; added from pfp forcefield
+  CG331   CG321   NG311   CG301     9  1.800000e+02  5.941280e+00      1 ; added from pfp forcefield
+  CG331   CG321   NG311  HGPAM1     9  0.000000e+00  1.255200e+00      3 ; added from pfp forcefield
   NC2D1   CC2O1   CC331    HCA3     9  0.000000e+00  0.000000e+00      3
   NC2D1  CC3161  CC3161  CC3161     9  0.000000e+00  8.368000e-01      3
   NC2D1  CC3162  CC3161    HCA1     9  0.000000e+00  8.368000e-01      3
@@ -1782,16 +1782,16 @@
   NC2D1  CC3162  OC3C61  CC3163     9  0.000000e+00  2.008320e+00      3
   NC2D1  CC3162  OC3C61  CC3163     9  0.000000e+00  2.594080e+00      1
   NC2D1  CC3162  OC3C61  CC3163     9  0.000000e+00  6.443360e+00      2
-  NG311   CG301   CG321    HGA2     9  0.000000e+00  6.694400e-01      3 ; added from pfp base
-  NG311   CG301   CG321   CG331     9  0.000000e+00  8.368000e-01      3 ; added from pfp base
-  NG311   CG301   OG301  CG2R61     9  0.000000e+00  1.004160e+00      1 ; added from pfp base
-  NG311   CG301   OG301  CG2R61     9  0.000000e+00  1.213360e+00      2 ; added from pfp base
-  NG311   CG301   OG301  CG2R61     9  0.000000e+00  8.368000e-02      3 ; added from pfp base
-  NG311   CG301   OG311    HGP1     9  0.000000e+00  1.924640e+00      2 ; added from pfp base
-  NG311   CG301   OG311    HGP1     9  0.000000e+00  2.761440e+00      3 ; added from pfp base
-  NG311   CG301   OG311    HGP1     9  0.000000e+00  6.652560e+00      1 ; added from pfp base
-  NG311   CG321   CG331    HGA3     9  0.000000e+00  6.694400e-01      3 ; added from pfp base
-  NG311   CT2   CT2    HA2     9  0.000000e+00  6.694400e-01      3 ; added by HL (link)
+  NG311   CG301   CG321    HGA2     9  0.000000e+00  6.694400e-01      3 ; added from pfp forcefield
+  NG311   CG301   CG321   CG331     9  0.000000e+00  8.368000e-01      3 ; added from pfp forcefield
+  NG311   CG301   OG301  CG2R61     9  0.000000e+00  1.004160e+00      1 ; added from pfp forcefield
+  NG311   CG301   OG301  CG2R61     9  0.000000e+00  1.213360e+00      2 ; added from pfp forcefield
+  NG311   CG301   OG301  CG2R61     9  0.000000e+00  8.368000e-02      3 ; added from pfp forcefield
+  NG311   CG301   OG311    HGP1     9  0.000000e+00  1.924640e+00      2 ; added from pfp forcefield
+  NG311   CG301   OG311    HGP1     9  0.000000e+00  2.761440e+00      3 ; added from pfp forcefield
+  NG311   CG301   OG311    HGP1     9  0.000000e+00  6.652560e+00      1 ; added from pfp forcefield
+  NG311   CG321   CG331    HGA3     9  0.000000e+00  6.694400e-01      3 ; added from pfp forcefield
+  NG311   CT2   CT2    HA2     9  0.000000e+00  6.694400e-01      3 ; added by HL (junction)
   OC2D1   CC2O1   NC2D1  CC3161     9  1.800000e+02  1.046000e+01      2
   OC301  CC3161  CC3161    HCA1     9  0.000000e+00  8.368000e-01      3
   OC301  CC3161  CC3161   OC311     9  0.000000e+00  0.000000e+00      2
@@ -1818,28 +1818,28 @@
   OC311  CC3161  CC3163  OC3C61     9  0.000000e+00  4.225840e+00      3
   OC311  CC3161  CC3163  OC3C61     9  0.000000e+00  6.694400e-01      2
   OC311  CC3161  CC3163  OC3C61     9  1.800000e+02  5.690240e+00      1
-  OG301   CG301   CG321    HGA2     9  0.000000e+00  6.694400e-01      3 ; added from pfp base
-  OG301   CG301   CG321   CG331     9  0.000000e+00  3.347200e+00      3 ; added from pfp base
-  OG301   CG301   NG311   CG321     9  1.800000e+02  2.928800e-01      2 ; added from pfp base
-  OG301   CG301   NG311   CG321     9  1.800000e+02  8.577200e+00      3 ; added from pfp base
-  OG301   CG301   NG311   CG321     9  1.800000e+02  9.832400e+00      1 ; added from pfp base
-  OG301   CG301   NG311  HGPAM1     9  1.800000e+02  4.476880e+00      3 ; added from pfp base
-  OG301   CG301   NG311  HGPAM1     9  1.800000e+02  5.104480e+00      2 ; added from pfp base
-  OG301   CG301   OG311    HGP1     9  0.000000e+00  4.476880e+00      3 ; added from pfp base
-  OG301   CG301   OG311    HGP1     9  0.000000e+00  4.895280e+00      2 ; added from pfp base
-  OG301   CG301   OG311    HGP1     9  0.000000e+00  6.485200e+00      1 ; added from pfp base
-  OG301  CG2R61  CG2R66    FGR1     9  1.800000e+02  1.129680e+01      2 ; added from pfp base
-  OG301  CG2R61  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
-  OG311   CG301   CG321    HGA2     9  0.000000e+00  6.694400e-01      3 ; added from pfp base
-  OG311   CG301   CG321   CG331     9  0.000000e+00  3.347200e+00      3 ; added from pfp base
-  OG311   CG301   NG311   CG321     9  1.800000e+02  2.928800e-01      2 ; added from pfp base
-  OG311   CG301   NG311   CG321     9  1.800000e+02  8.577200e+00      3 ; added from pfp base
-  OG311   CG301   NG311   CG321     9  1.800000e+02  9.832400e+00      1 ; added from pfp base
-  OG311   CG301   NG311  HGPAM1     9  1.800000e+02  4.476880e+00      3 ; added from pfp base
-  OG311   CG301   NG311  HGPAM1     9  1.800000e+02  5.104480e+00      2 ; added from pfp base
-  OG311   CG301   OG301  CG2R61     9  0.000000e+00  1.004160e+00      1 ; added from pfp base
-  OG311   CG301   OG301  CG2R61     9  0.000000e+00  1.213360e+00      2 ; added from pfp base
-  OG311   CG301   OG301  CG2R61     9  0.000000e+00  8.368000e-02      3 ; added from pfp base
+  OG301   CG301   CG321    HGA2     9  0.000000e+00  6.694400e-01      3 ; added from pfp forcefield
+  OG301   CG301   CG321   CG331     9  0.000000e+00  3.347200e+00      3 ; added from pfp forcefield
+  OG301   CG301   NG311   CG321     9  1.800000e+02  2.928800e-01      2 ; added from pfp forcefield
+  OG301   CG301   NG311   CG321     9  1.800000e+02  8.577200e+00      3 ; added from pfp forcefield
+  OG301   CG301   NG311   CG321     9  1.800000e+02  9.832400e+00      1 ; added from pfp forcefield
+  OG301   CG301   NG311  HGPAM1     9  1.800000e+02  4.476880e+00      3 ; added from pfp forcefield
+  OG301   CG301   NG311  HGPAM1     9  1.800000e+02  5.104480e+00      2 ; added from pfp forcefield
+  OG301   CG301   OG311    HGP1     9  0.000000e+00  4.476880e+00      3 ; added from pfp forcefield
+  OG301   CG301   OG311    HGP1     9  0.000000e+00  4.895280e+00      2 ; added from pfp forcefield
+  OG301   CG301   OG311    HGP1     9  0.000000e+00  6.485200e+00      1 ; added from pfp forcefield
+  OG301  CG2R61  CG2R66    FGR1     9  1.800000e+02  1.129680e+01      2 ; added from pfp forcefield
+  OG301  CG2R61  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp forcefield
+  OG311   CG301   CG321    HGA2     9  0.000000e+00  6.694400e-01      3 ; added from pfp forcefield
+  OG311   CG301   CG321   CG331     9  0.000000e+00  3.347200e+00      3 ; added from pfp forcefield
+  OG311   CG301   NG311   CG321     9  1.800000e+02  2.928800e-01      2 ; added from pfp forcefield
+  OG311   CG301   NG311   CG321     9  1.800000e+02  8.577200e+00      3 ; added from pfp forcefield
+  OG311   CG301   NG311   CG321     9  1.800000e+02  9.832400e+00      1 ; added from pfp forcefield
+  OG311   CG301   NG311  HGPAM1     9  1.800000e+02  4.476880e+00      3 ; added from pfp forcefield
+  OG311   CG301   NG311  HGPAM1     9  1.800000e+02  5.104480e+00      2 ; added from pfp forcefield
+  OG311   CG301   OG301  CG2R61     9  0.000000e+00  1.004160e+00      1 ; added from pfp forcefield
+  OG311   CG301   OG301  CG2R61     9  0.000000e+00  1.213360e+00      2 ; added from pfp forcefield
+  OG311   CG301   OG301  CG2R61     9  0.000000e+00  8.368000e-02      3 ; added from pfp forcefield
  CC3161   NC2D1   CC2O1   CC331     9  0.000000e+00  6.694400e+00      1
  CC3161   NC2D1   CC2O1   CC331     9  1.800000e+02  1.046000e+01      2
  CC3161   OC301  CC3162    HCA1     9  0.000000e+00  1.188256e+00      3
@@ -1891,17 +1891,23 @@
  CC3163  OC3C61  CC3162   OC301     9  0.000000e+00  2.092000e-01      3
  CC3163  OC3C61  CC3162   OC301     9  0.000000e+00  3.723760e+00      2
  CC3163  OC3C61  CC3162   OC301     9  1.800000e+02  1.715440e+00      1
- CG2R61  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp base
- CG2R61  CG2R66  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
- CG2R66  CG2R61   OG301   CG301     9  1.800000e+02  6.778080e+00      2 ; added from pfp base
- CG2R66  CG2R61   OG301   CG301     9  1.800000e+02  7.949600e-01      4 ; added from pfp base
- CG2R66  CG2R61  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp base
- CG2R66  CG2R61  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
- CG2R66  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp base
- CG2R66  CG2R66  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp base
+ CG2R61  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp forcefield
+ CG2R61  CG2R66  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp forcefield
+ CG2R66  CG2R61   OG301   CG301     9  1.800000e+02  6.778080e+00      2 ; added from pfp forcefield
+ CG2R66  CG2R61   OG301   CG301     9  1.800000e+02  7.949600e-01      4 ; added from pfp forcefield
+ CG2R66  CG2R61  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp forcefield
+ CG2R66  CG2R61  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp forcefield
+ CG2R66  CG2R66  CG2R66    FGR1     9  1.800000e+02  1.882800e+01      2 ; added from pfp forcefield
+ CG2R66  CG2R66  CG2R66  CG2R66     9  1.800000e+02  1.297040e+01      2 ; added from pfp forcefield
  CT2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral
- HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral
+ CT2      NG311   CG301   CG321     9    0.000000    2.092000          3 ; Added by HL (junction) D1 mult 3
+ CT2      NG311   CG301   CG321     9    0.000000    6.276000          2 ; Added by HL (junction) D1 mult 2
+ CT2      NG311   CG301   CG321     9  180.000000   10.460000          1 ; Added by HL (junction) D1 mult 1
  CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix
+ CT2      NG311   CG301   OG311     9  180.000000    0.292880          2 ; Added by HL (junction) D2 mult 2
+ CT2      NG311   CG301   OG311     9  180.000000    8.577200          3 ; Added by HL (junction) D2 mult 3
+ CT2      NG311   CG301   OG311     9  180.000000    9.832400          1 ; Added by HL (junction) D2 mult 1
+ HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral
  OC3C61  CC3162  CC3161   NC2D1     9  0.000000e+00  8.368000e-01      3
 [ dihedraltypes ]
 ; i	j	k	l	func	q0	Kq
