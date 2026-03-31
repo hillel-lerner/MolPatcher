@@ -1,6 +1,6 @@
 import os
 
-def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
+def build_master_forcefield_complete(base_path, pfp_path, modded_ff, output_path):
     mods = {}
     
     def add_mod(sec, line, tag):
@@ -33,7 +33,7 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
 
     # 2. Load PI's modifications
     current_sec = None
-    with open(pi_path, "r") as f_pi:
+    with open(modded_ff, "r") as f_pi:
         for line in f_pi:
             stripped = line.strip()
             if stripped.startswith("[") and stripped.endswith("]"):
@@ -140,6 +140,6 @@ def build_master_forcefield_complete(base_path, pfp_path, pi_path, output_path):
 build_master_forcefield_complete(
     base_path="forcefields/6oge_all_forcefield.itp", 
     pfp_path="forcefields/ff_pfp.itp",
-    pi_path="forcefields/ff_PRODE_E136.itp", 
+    modded_ff="forcefields/ff_PRODE_E136.itp", 
     output_path="forcefields/forcefield_master.itp"
 )
