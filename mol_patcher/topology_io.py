@@ -1,4 +1,5 @@
 from .mol_record import ItpAtom, ItpBond, ItpAngle, ItpDih, ItpPair
+from .topology_tools import reindex_topology
 
 class TopologyParser:
     @staticmethod
@@ -58,7 +59,7 @@ class TopologyBuilder:
     def write_itp(self):
         """Writes a GROMACS ITP file after ensuring internal indices are synced."""
         # Trigger the Mol object's internal reindexing to sync a1, a2, etc.
-        self.mol.reindex()
+        reindex_topology(self.mol)
 
         with open(self.filename, 'w') as f:
             # Molecule Header
