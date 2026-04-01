@@ -1,70 +1,70 @@
 # MolPatcher: Protein-Ligand Attachment Tool
 
-**MolPatcher** is a computational chemistry tool designed to precisely insert ligand "patches" into "base" protein residues at a specified anchor site while maintaining topology synchronization and geometric alignment.
+MolPatcher is a Python-based computational chemistry tool designed to automate the geometric alignment and topological merging of molecular patches onto target protein residues. 
 
-## Key Features
+## Core Architecture
 
-* **Surgical Residue Insertion**: Rather than append atoms to the end of a file, MolPatcher inserts patch atoms immediately after the anchor, maintaining physical residue contiguity.
-* **Synchronized Topology & PDB**: Simultaneously generates valid PDB and ITP files where atom serials, charge groups (`cgnr`), and all bonded interaction pointers (bonds, angles, dihedrals) are automatically re-indexed.
-* **Precision Geometry**: Uses a 3-point Kabsch algorithm to orient patches with sub-angstrom precision relative to the target residue.
-* **CHARMM-GUI Optimized**: Specifically designed for all-atom PDBs and naming conventions generated via **CHARMM-GUI**.
-* **Safety Layers**: Features an anchor protection layer to prevent backbone deletion and a "fail-fast" mechanism for missing anchors.
+The package consists of Python scripts designed to parse standard topologies, calculate geometric superpositions, and splice physical and topological arrays without relying on external visualization GUIs.
 
+* **`pdb_io.py` & `topology_io.py`**: Handles the parsing and writing of PDB coordinate files and GROMACS `.itp` topology files, converting raw text into manageable Python objects.
+* **`mol_record.py`**: Contains the dataclasses (e.g., `Mol`, `PdbRecord`, `ItpAtom`) that standardize attributes across the package.
+* **`geometry.py`**: Houses the `PatchAligner` and `MolGraph` classes. Calculates the optimal rotation and translation matrices to superimpose anchor atoms using Kabsch-style vector alignment, and builds network connectivity matrices for distance-based bond mapping.
+* **`stitcher.py`**: Executes the topological surgery. Analyzes the `MolGraph` to identify displaced atoms (e.g., leaving groups/hydrogens), splices the aligned patch coordinates into the base molecule, writes the new junction bonds, balances integer electrostatics, and renames the patched residue to `LYX`.
+* **`topology_tools.py`**: Synchronizes and re-indexes the new global topology to ensure contiguous atom numbering for GROMACS compatibility.
+* **`utilities.py`**: Provides mathematical helper functions for vector math, spatial distance calculations, and dynamic MD simulation box sizing.
+* **`combine_ff.py`**: A standalone utility to merge base forcefields, modified parameters, and custom junction dihedrals into a single, deduplicated master forcefield.
+
+## Requirements
+* Python 3.11
+* `numpy` (for matrix operations)
+* `scipy` (for spatial alignments)
+* `networkx` (for connectivity matrices)
 ---
+
 
 ## Installation & Usage
 
-### Dependencies
+MolPatcher uses a conda environment to manage its dependencies and install its command-line tool.
 
-* **Python 3.10+**
-* **NumPy** & **SciPy**
+### Setup (One Time Only)
 
-### Execution
+MolPatcher uses a conda environment to manage its dependencies. 
 
-MolPatcher supports both CLI for production and interactive mode for debugging.
-
-**CLI Mode:**
-
+1. Clone or download this repository to your local machine.
+2. Navigate to the project directory in your terminal and create the environment. This will automatically install the `molpatcher` terminal command.
 ```bash
-python main.py --pdb protein.pdb --itp protein.itp --res 188 --chain "A"
-
+conda env create -f environment.yml
 ```
-
-**Interactive Mode (VS Code):**
-Run `main.py` directly; it defaults to pre-configured research parameters if no arguments are provided.
-
+4. Activate the environment:
+   ```bash
+   conda activate patcher
+   ```
 ---
 
-## Adding New Patch Types
+### Usage
 
-To integrate a new chemical modification (e.g., a halogenated group), follow these steps:
+Once installed, you can execute the pipeline from anywhere using the `molpatcher` command. Just activate the environment before running your command.
 
-### 1. File Preparation
+**Basic Command Structure:**
+```bash
+conda activate patcher
 
-Place the new `.pdb` (with 3 anchors) and `.itp` files in the `pdbs/` and `itps/` directories.
-
-### 2. Configure Anchors
-
-In `main.py`, define the **Mobile Anchors** (patch-side) and **Target Anchors** (protein-side) to lock the geometry.
-
-### 3. Update the Call
-
-Update `run_patch` to load your new ligand files:
-
-```python
-pfp_atoms = mol_stitcher.get_new_patch_pdb("new_patch.pdb")
-pfp_mol = Mol(name="NEW", records=pfp_atoms)
-pfp_mol.load_itp("new_patch.itp")
-
+molpatcher --pdb [INPUT_PDB] --itp [INPUT_ITP] --res [TARGET_RESIDUE_ID] --chain [TARGET_CHAIN]
 ```
 
-### 4. Set the Junction Bridge
+**Optional Arguments:**
+* `-o`, `--outdir`: Specify a custom directory to save the patched outputs. Defaults to your current working directory. It is not recommended to run this package inside of the MolPatcher directory
+* `--ff`, `--forcefield`: Provide the path to a master forcefield directory. If provided, the pipeline will copy this directory into your output folder.
 
-In `mol_stitcher.py`, verify the junction bond (e.g., base N to patch C) and associated angles/dihedrals reflect the new chemistry.
+**Example:**
+```bash
+molpatcher --pdb pdbs/fab_base.pdb --itp topology_files/PROB.itp --res 42 --chain B -o /home/user/simulations/ --ff /home/user/master_toppar/
+```
 
----
+## [!WARNING] Important Warning: Geometric Verification
 
-## Project Roadmap
+**Full steric clash detection is not yet implemented in this version of MolPatcher.** While the `PatchAligner` mathematically superimposes the anchor atoms to optimize the junction geometry, it does not evaluate the surrounding spatial environment for collisions between the newly attached patch and the rest of the protein backbone or adjacent side chains.
 
-* **High-Throughput Patching**: Implementing the patching of all viable lysines on a given protein/Fab.
-* **Steric Clash Resolution**: Implementing automated lysine rotation to prevent steric clashes from occuring between the patch and the base molecule (protein) as a whole via PyMol Wizard's Mutagenesis function.
+**Mandatory Post-Processing:** You must manually open the resulting PDB file in a molecular visualization software (such as PyMOL, Jmol, VMD, or Chimera) to visually verify the patch geometry and ensure there are no severe steric clashes before proceeding to molecular dynamics simulations.
+```
+

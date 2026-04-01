@@ -7,5 +7,6 @@ dependencies:
   - numpy
   - scipy
   - networkx
-  - biopython
   - pip
+  - pip:
+    - -e .
