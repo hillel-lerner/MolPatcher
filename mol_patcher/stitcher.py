@@ -127,13 +127,23 @@ class Stitcher:
         filter_patch_records, filter_patch_atoms = [], []
         dynamic_seg_id = target_anchors[0].seg_id
 
+        # Append patch atoms with the LYX designation
         for i, record in enumerate(aligned_patch_atoms):
             if record not in self.patch_deletions and record not in patch_overlap_anchors:
-                filter_patch_records.append(replace(record, res_name=target_reference.res_name, 
+                filter_patch_records.append(replace(record, res_name="LYX ", 
                                         chain=target_reference.chain, res_seq=target_reference.res_seq, 
                                         seg_id=dynamic_seg_id))
                 filter_patch_atoms.append(replace(self.patch.atoms[i], res_n=target_reference.res_seq, 
-                                        res=target_reference.res_name))
+                                        res="LYX"))
+
+        # Rename the preserved base protein atoms at the target site to LYX
+        for r in final_records:
+            if r.res_seq == target_reference.res_seq and r.chain == target_reference.chain and r.res_name.strip() == "LYS":
+                r.res_name = "LYX "
+
+        for a in final_atoms:
+            if a.res_n == target_reference.res_seq and a.res.strip() == "LYS":
+                a.res = "LYX"
 
         for atom in filter_patch_atoms:
             atom.number += self.offset
