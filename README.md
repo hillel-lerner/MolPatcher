@@ -31,11 +31,14 @@ MolPatcher uses a conda environment to manage its dependencies and install its c
 MolPatcher uses a conda environment to manage its dependencies. 
 
 1. Clone or download this repository to your local machine.
+```bash
+git clone https://github.com/hillel-lerner/MolPatcher.git
+```
 2. Navigate to the project directory in your terminal and create the environment. This will automatically install the `molpatcher` terminal command.
 ```bash
 conda env create -f environment.yml
 ```
-3. Activate the environment:
+1. Activate the environment:
 ```bash
 conda activate patcher
 ```
