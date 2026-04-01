@@ -15,7 +15,7 @@ The package consists of Python scripts designed to parse standard topologies, ca
 * **`combine_ff.py`**: A standalone utility to merge base forcefields, modified parameters, and custom junction dihedrals into a single, deduplicated master forcefield.
 
 ## Requirements
-* Python 3.11
+* Python 3.11+
 * `numpy` (for matrix operations)
 * `scipy` (for spatial alignments)
 * `networkx` (for connectivity matrices)
