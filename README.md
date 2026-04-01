@@ -35,7 +35,7 @@ MolPatcher uses a conda environment to manage its dependencies.
 ```bash
 conda env create -f environment.yml
 ```
-4. Activate the environment:
+3. Activate the environment:
    ```bash
    conda activate patcher
    ```
