@@ -10,7 +10,7 @@ from mol_patcher import utilities
 
 def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
 
-    run_folder_name = f"patched_{chain}_{res_id}"
+    run_folder_name = f"patched_lys_{res_id}"
     final_outdir = os.path.join(outdir, run_folder_name)
     os.makedirs(final_outdir, exist_ok=True)
 
@@ -64,8 +64,8 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     )
     
     # Save outputs
-    pdb_outfile = os.path.join(final_outdir, f"patched_{chain}_{res_id}.pdb")
-    itp_outfile = os.path.join(final_outdir, f"patched_{chain}_{res_id}.itp")
+    pdb_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.pdb")
+    itp_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.itp")
 
     PdbBuilder(pdb_outfile, stitched_mol.records, headers, ters).write_pdb()
     TopologyBuilder(stitched_mol, itp_outfile, base_mol_name).write_itp()
