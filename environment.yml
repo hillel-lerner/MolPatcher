@@ -6,6 +6,6 @@ dependencies:
   - python=3.11
   - numpy
   - scipy
+  - networkx
   - biopython
-  - pymol-open-source
   - pip
