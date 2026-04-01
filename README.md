@@ -61,10 +61,11 @@ molpatcher --pdb [INPUT_PDB] --itp [INPUT_ITP] --res [TARGET_RESIDUE_ID] --chain
 molpatcher --pdb pdbs/fab_base.pdb --itp topology_files/PROB.itp --res 42 --chain B -o /home/user/simulations/ --ff /home/user/master_toppar/
 ```
 
-## [!WARNING] Important Warning: Geometric Verification
+## [!WARNING] 
+
+### Important Warning: Geometric Verification
 
 **Full steric clash detection is not yet implemented in this version of MolPatcher.** While the `PatchAligner` mathematically superimposes the anchor atoms to optimize the junction geometry, it does not evaluate the surrounding spatial environment for collisions between the newly attached patch and the rest of the protein backbone or adjacent side chains.
 
 **Mandatory Post-Processing:** You must manually open the resulting PDB file in a molecular visualization software (such as PyMOL, Jmol, VMD, or Chimera) to visually verify the patch geometry and ensure there are no severe steric clashes before proceeding to molecular dynamics simulations.
-```
 
