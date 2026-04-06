@@ -11,7 +11,6 @@ class PdbParser:
 
         for atom in records:
             current_res = (atom.chain, atom.res_seq, atom.ins_code)
-            print(f"Comparing current {current_res} to last_seen {last_seen}")
             if current_res[0] != last_seen[0]:
                 self.res_counter = 1
                 last_seen = current_res
@@ -20,7 +19,6 @@ class PdbParser:
                 last_seen = current_res
             atom.res_seq = self.res_counter
             atom.ins_code = " "
-        print(f"Atom saved with res_seq: {atom.res_seq}")
         return records
     
     def fix_chain_id(self, records):
