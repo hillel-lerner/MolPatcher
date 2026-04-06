@@ -25,7 +25,6 @@ MolPatcher uses a conda environment to manage dependencies and install the comma
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/hillel-lerner/MolPatcher.git
-    cd MolPatcher
     ```
 2.  **Create and activate the environment:**
     ```bash
