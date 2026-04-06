@@ -50,7 +50,7 @@ Once installed, you can execute the pipeline from anywhere using the `molpatcher
 
 **Basic Command Structure:**
 ```bash
-conda activate patcher
+conda activate mol_patcher
 
 molpatcher --pdb [INPUT_PDB] --itp [INPUT_ITP] --res [TARGET_RESIDUE_ID] --chain [TARGET_CHAIN]
 ```
