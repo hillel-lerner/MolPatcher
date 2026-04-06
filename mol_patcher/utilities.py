@@ -37,3 +37,30 @@ def get_optimal_box_size(records, buffer_percent=0.33, min_buffer_nm=3.0):
     optimal_size = round(max_dist_nm + final_buffer, 3)
     
     return optimal_size, round(final_buffer, 3)
+
+def get_dihedral(p1, p2, p3, p4):
+    """
+    Calculates the dihedral angle (torsion angle) in degrees between four points.
+    The sign follows the IUPAC convention (clockwise is positive).
+    """
+    # Create vectors between the atoms
+    b0 = -1.0 * (np.array(p2) - np.array(p1))
+    b1 = np.array(p3) - np.array(p2)
+    b2 = np.array(p4) - np.array(p3)
+
+    # Normalize the central bond (the axis of rotation)
+    b1 /= np.linalg.norm(b1)
+
+    # Find the normal vectors to the two planes
+    # v = vector in the first plane (A-B-C)
+    # w = vector in the second plane (B-C-D)
+    v = b0 - np.dot(b0, b1) * b1
+    w = b2 - np.dot(b2, b1) * b1
+
+    # Calculate the angle using the dot product and the determinant
+    # x is the cosine component, y is the sine component
+    x = np.dot(v, w)
+    y = np.dot(np.cross(b1, v), w)
+
+    # Return the angle in degrees
+    return np.degrees(np.arctan2(y, x))
