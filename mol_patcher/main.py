@@ -5,7 +5,7 @@ from mol_patcher.stitcher import Stitcher, Patchloader
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
 from mol_patcher.topology_io import TopologyBuilder
-from mol_patcher.geometry import PatchAligner
+from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker, RotamerSweeper
 from mol_patcher import utilities
 
 def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
@@ -28,7 +28,8 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     loader.get_pfp_itp(patch_mol)
 
     # Load Base Protein Data
-    headers, base_records, ters, t_name = PdbParser.read_file(pdb_path)
+    parser = PdbParser()
+    headers, base_records, t_name = parser.read_file(pdb_path) 
     base_mol = Mol(name=t_name, records=base_records, atoms=[], bonds=[], pairs=[], angles=[], dihs=[])
     base_mol.load_itp(itp_path)
 
@@ -63,11 +64,30 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
         target_anchors=target_anchors
     )
     
+    # --- OPTIMIZATION (ROTAMER SWEEP) ---
+    graph = MolGraph(stitched_mol, distXX=1.90)
+
+    backbone_names = ['N', 'H', 'HN', 'CA', 'HA', 'C', 'O']
+    moving_atoms = [a for a in stitched_mol.records 
+                    if a.res_seq == res_id and a.name.strip() not in backbone_names]
+    static_atoms = [a for a in stitched_mol.records if a.res_seq != res_id]
+
+    checker = StericChecker(graph, moving_atoms, static_atoms, tolerance=0.75)
+    sweeper = RotamerSweeper(stitched_mol, graph, res_id)
+
+    print(f"Starting optimization for {len(moving_atoms)} atoms...")
+    success = sweeper.run_sweep(checker)
+
+    if not success:
+        print(f"Error: Could not find a clash-free conformation for residue {res_id}. Exiting.")
+        return
+
+
     # Save outputs
     pdb_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.pdb")
     itp_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.itp")
 
-    PdbBuilder(pdb_outfile, stitched_mol.records, headers, ters).write_pdb()
+    PdbBuilder(pdb_outfile, stitched_mol.records, headers).write_pdb()
     TopologyBuilder(stitched_mol, itp_outfile, base_mol_name).write_itp()
 
     # Stage forcefield (optional)
@@ -92,25 +112,21 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
 
+def main():
+    parser = argparse.ArgumentParser(description="Patch a ligand into a protein residue.")
+    parser.add_argument("--pdb", required=True, help="Input PDB file")
+    parser.add_argument("--itp", required=True, help="Input ITP file")
+    parser.add_argument("--res", type=int, required=True, help="Target residue ID")
+    parser.add_argument("--chain", default=" ", help="Chain ID")
+    parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
+    
+    args = parser.parse_args()
+    
+    # Resolve absolute paths based on where the user is currently standing
+    pdb_abs = os.path.abspath(args.pdb)
+    itp_abs = os.path.abspath(args.itp)
+    
+    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir)
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        parser = argparse.ArgumentParser(description="Patch a ligand into a protein residue.")
-        parser.add_argument("--pdb", required=True, help="Input PDB filename")
-        parser.add_argument("--itp", required=True, help="Input ITP filename")
-        parser.add_argument("--res", type=int, required=True, help="Target residue ID")
-        parser.add_argument("--chain", default=" ", help="Chain ID")
-        parser.add_argument("-o", "--outdir", type=str, default=os.getcwd(), help="Directory to save the patched output. Defaults to current working directory.")
-        parser.add_argument("--ff", "--forcefield", type=str, default=None, help="Optional: Path to the master forcefield directory to copy into the output folder.")
-        
-        args = parser.parse_args()
-        # Passed the new outdir and ff arguments to the function
-        run_patch(args.pdb, args.res, args.chain, args.itp, args.outdir, args.ff)
-    else:
-        run_patch(
-            # For running outside of CLI
-            pdb_file="step3_input.pdb", 
-            res_id=136, 
-            chain=" ",
-            itp_file="PROE.itp",
-            outdir=os.getcwd() # Added default output directory for non-CLI runs
-        )
+    main()
