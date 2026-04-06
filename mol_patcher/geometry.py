@@ -307,7 +307,7 @@ class RotamerSweeper:
 
         # Tier 3: NZ-C7 Patch Tweak
         print("Tier 3: Lysine stuck. Rotating patch molecule (NZ-C7)...")
-        return self.attempt_pfp_tweak(steric_checker)
+        return self.attempt_patch_twist(steric_checker)
 
     def apply_pose(self, chi_angles):
         """Iteratively apply all chi rotations for a given pose."""
@@ -326,7 +326,7 @@ class RotamerSweeper:
                                             self.serial_to_idx[atom_records[2].serial])
         rotate_dihedral(moving_atoms, coords[1], coords[2], delta)
 
-    def attempt_pfp_tweak(self, steric_checker):
+    def attempt_patch_twist(self, steric_checker):
         """Rotates only the patch molecule in 15-degree steps."""
         nz = self.get_atom_by_name('NZ')
         c7 = self.get_atom_by_name('C7') 

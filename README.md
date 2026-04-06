@@ -65,7 +65,7 @@ MolPatcher includes a built-in **RotamerSweeper** that automatically resolves st
 
 1.  **Tier 1 (Canonical)**: Tests the most common staggered rotameric states for the target residue.
 2.  **Tier 2 (Systematic Wiggle)**: Performs a fine-grained 30° systematic sweep of the $\chi_4$ dihedral.
-3.  **Tier 3 (Patch Twist)**: If the residue is "stuck," the tool performs 15° rotations around the new junction bond to clear local environment clashes.
+3.  **Tier 3 (Patch Twist)**: If there are still steric clashes, the tool performs 15° rotations around the new junction bond to clear local environment conflicts.
 
 The tool provides real-time terminal feedback via an animation spinner and progress indicators during the $O(N^2)$ graph-building phase.
 
