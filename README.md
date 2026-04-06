@@ -40,7 +40,7 @@ conda env create -f environment.yml
 ```
 1. Activate the environment:
 ```bash
-conda activate patcher
+conda activate mol_patcher
 ```
 ---
 
