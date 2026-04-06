@@ -4,14 +4,45 @@ from .mol_record import PdbRecord
 
 class PdbParser:
 
-    @staticmethod
-    def read_file(file):
+    def fix_res_num(self, records):
+        self.res_data = []
+        self.res_counter = 1
+        last_seen = (records[0].chain, records[0].res_seq, records[0].ins_code)
 
-        file_name = os.path.basename(file)
+        for atom in records:
+            current_res = (atom.chain, atom.res_seq, atom.ins_code)
+            print(f"Comparing current {current_res} to last_seen {last_seen}")
+            if current_res[0] != last_seen[0]:
+                self.res_counter = 1
+                last_seen = current_res
+            elif current_res != last_seen:
+                self.res_counter += 1
+                last_seen = current_res
+            atom.res_seq = self.res_counter
+            atom.ins_code = " "
+        print(f"Atom saved with res_seq: {atom.res_seq}")
+        return records
+    
+    def fix_chain_id(self, records):
+            
+            for atom in records:
+                chain = atom.chain
+                if chain == " ":
+                    if atom.seg_id:
+                        chain = atom.seg_id[-1]
+                    else:
+                        print(f"No chain identified for atom {atom.serial}, setting to blank.")
+                atom.chain = chain
+            return records
 
-        header_lines = []
-        atoms = []
-        ter_lines = [] # necessary if ATOM record exists
+
+
+    def read_file(self, file):
+
+        self.file_name = os.path.basename(file)
+
+        self.header_lines = []
+        self.atoms = []
 
         headers = ('HEADER', 'OBSLTE', 'TITLE', 'SPLIT', 'CAVEAT', 'COMPND', 'SOURCE', 
                 'KEYWDS', 'EXPDTA', 'NUMMDL', 'MDLTYP', 'AUTHOR', 'REVDAT', 
@@ -20,20 +51,19 @@ class PdbParser:
         with open(file, 'r') as f:
             for line in f:
                 if line.startswith(headers):
-                    header_lines.append(line)
+                    self.header_lines.append(line)
 
                 elif line.startswith(('ATOM', 'HETATM')):
-                    atom = PdbParser.parse_line(line, file_name) 
-                    atoms.append(atom)
+                    atom = self.parse_line(line, self.file_name) 
+                    self.atoms.append(atom)
 
-                elif line.startswith('TER'):
-                    ter_lines.append(line)
+        self.new_atoms = self.fix_chain_id(self.atoms)
+        self.final_atoms = self.fix_res_num(self.new_atoms)
 
-        return header_lines, atoms, ter_lines, file_name
+        return self.header_lines, self.final_atoms, self.file_name
 
 
-    @staticmethod
-    def parse_line(line, file_name):
+    def parse_line(self, line, file_name):
 
         """parses pdb line of ATOM or HETATM information into an PdbRecord object"""
         try:
@@ -45,6 +75,7 @@ class PdbParser:
                 res_name=line[17:20].strip(),
                 chain=line[21],
                 res_seq=int(line[22:26].strip()),
+                ins_code=line[26],
                 x=float(line[30:38]),
                 y=float(line[38:46]),
                 z=float(line[46:54]),
@@ -60,7 +91,6 @@ class PdbBuilder:
         self.new_pdb_name = new_pdb_name
         self.atom_list = atom_list
         self.headers = headers if headers else []
-        self.ter_line = ter_line if ter_line else []
 
 
     def format_lines(self):
@@ -104,7 +134,7 @@ class PdbBuilder:
                 str(atom.res_name),
                 str(atom.chain),
                 int(atom.res_seq),  
-                " ", # InsCode
+                str(atom.ins_code), 
                 float(atom.x), float(atom.y), float(atom.z),
                 float(occ),
                 float(temp),
@@ -112,8 +142,8 @@ class PdbBuilder:
             )
             formatted_lines.append(line)
 
-        for ter in self.ter_line:
-            formatted_lines.append(ter)
+        
+        formatted_lines.append("TER\n")
             
         formatted_lines.append("END\n")
 

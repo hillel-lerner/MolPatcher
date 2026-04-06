@@ -23,6 +23,7 @@ class PdbRecord:
     occupancy: float = 1.00
     temp_factor: float = 0.00
     seg_id: str = ""
+    ins_code: str = " "
 
 
 @dataclass
