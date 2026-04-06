@@ -14,7 +14,14 @@ The package consists of modular components designed to parse standard topologies
     * **`StericChecker`**: Evaluates spatial environments using a localized graph-traversal search to identify overlaps based on 2024 Charry/Tkatchenko VdW radii.
     * **`RotamerSweeper`**: Executes a three-tiered conformational search to find clash-free states.
 * **`stitcher.py`**: Executes the topological surgery. Splices aligned patch coordinates, writes junction bonds, and balances electrostatics.
+* **`topology_tools.py`**: Reindexes the topology modified in `stitcher.py`.
 * **`utilities.py`**: Helper functions for vector math, dihedral rotations, and dynamic MD box sizing.
+* **`main.py`**: Excecutes the MolPatcher pipeline.
+
+## Standalone Utility Functions
+
+* **`combine_ff.py`**: Use to build combined master forcefield files with custom parameters.
+* **`fix_itp_resnr.py`**: Use to fix and reorder any topology files with non-integer residue numbers (e.g., 94B).
 
 ---
 
