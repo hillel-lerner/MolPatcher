@@ -1,74 +1,66 @@
 # MolPatcher: Protein-Ligand Attachment Tool
 
-MolPatcher is a Python-based computational chemistry tool designed to automate the geometric alignment and topological merging of molecular patches onto target protein residues. 
+MolPatcher is a Python-based computational chemistry tool designed to automate the geometric alignment, topological merging, and conformational optimization of molecular patches onto target protein residues.
 
 ## Core Architecture
 
-The package consists of Python scripts designed to parse standard topologies, calculate geometric superpositions, and splice physical and topological arrays without relying on external visualization GUIs.
+The package consists of modular components designed to parse standard topologies, calculate geometric superpositions, and resolve steric clashes without relying on external visualization GUIs.
 
-* **`pdb_io.py` & `topology_io.py`**: Handles the parsing and writing of PDB coordinate files and GROMACS `.itp` topology files, converting raw text into manageable Python objects.
-* **`mol_record.py`**: Contains the dataclasses (e.g., `Mol`, `PdbRecord`, `ItpAtom`) that standardize attributes across the package.
-* **`geometry.py`**: Houses the `PatchAligner` and `MolGraph` classes. Calculates the optimal rotation and translation matrices to superimpose anchor atoms using Kabsch-style vector alignment, and builds network connectivity matrices for distance-based bond mapping.
-* **`stitcher.py`**: Executes the topological surgery. Analyzes the `MolGraph` to identify displaced atoms (e.g., leaving groups/hydrogens), splices the aligned patch coordinates into the base molecule, writes the new junction bonds, balances integer electrostatics, and renames the patched residue to `LYX`.
-* **`topology_tools.py`**: Synchronizes and re-indexes the new global topology to ensure contiguous atom numbering for GROMACS compatibility.
-* **`utilities.py`**: Provides mathematical helper functions for vector math, spatial distance calculations, and dynamic MD simulation box sizing.
-* **`combine_ff.py`**: A standalone utility to merge base forcefields, modified parameters, and custom junction dihedrals into a single, deduplicated master forcefield.
+* **`pdb_io.py` & `topology_io.py`**: Handles parsing and writing of PDB coordinate files and GROMACS `.itp` files. 
+* **`mol_record.py`**: Standardizes molecular data into Python dataclasses (`Mol`, `PdbRecord`, `ItpAtom`).
+* **`geometry.py`**: The engine of the package.
+    * **`PatchAligner`**: Uses Kabsch-style vector alignment for optimal 3D superposition.
+    * **`MolGraph`**: Builds a NetworkX-based connectivity graph for distance-based bond mapping.
+    * **`StericChecker`**: Evaluates spatial environments using a localized graph-traversal search to identify overlaps based on 2024 Charry/Tkatchenko VdW radii.
+    * **`RotamerSweeper`**: Executes a three-tiered conformational search to find clash-free states.
+* **`stitcher.py`**: Executes the topological surgery. Splices aligned patch coordinates, writes junction bonds, and balances electrostatics.
+* **`utilities.py`**: Helper functions for vector math, dihedral rotations, and dynamic MD box sizing.
 
-## Requirements
-* Python 3.11+
-* `numpy` (for matrix operations)
-* `scipy` (for spatial alignments)
-* `networkx` (for connectivity matrices)
 ---
 
+## Installation
 
-## Installation & Usage
+MolPatcher uses a conda environment to manage dependencies and install the command-line tool.
 
-MolPatcher uses a conda environment to manage its dependencies and install its command-line tool.
-
-### Setup (One Time Only)
-
-MolPatcher uses a conda environment to manage its dependencies. 
-
-1. Clone or download this repository to your local machine.
-```bash
-git clone https://github.com/hillel-lerner/MolPatcher.git
-```
-2. Navigate to the project directory in your terminal and create the environment. This will automatically install the `molpatcher` terminal command.
-```bash
-conda env create -f environment.yml
-```
-1. Activate the environment:
-```bash
-conda activate mol_patcher
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/hillel-lerner/MolPatcher.git
+    cd MolPatcher
+    ```
+2.  **Create and activate the environment:**
+    ```bash
+    conda env create -f environment.yml
+    conda activate mol_patcher
+    ```
 ---
 
-### Usage
+## Usage
 
-Once installed, you can execute the pipeline from anywhere using the `molpatcher` command. Just activate the environment before running your command.
+Once installed, you can execute the pipeline using the `molpatcher` command.
 
 **Basic Command Structure:**
 ```bash
-conda activate mol_patcher
-
 molpatcher --pdb [INPUT_PDB] --itp [INPUT_ITP] --res [TARGET_RESIDUE_ID] --chain [TARGET_CHAIN]
 ```
 
 **Optional Arguments:**
-* `-o`, `--outdir`: Specify a custom directory to save the patched outputs. Defaults to your current working directory. It is not recommended to run this package inside of the MolPatcher directory
-* `--ff`, `--forcefield`: Provide the path to a master forcefield directory. If provided, the pipeline will copy this directory into your output folder.
+* `-o`, `--outdir`: Specify a custom directory to save outputs. Defaults to the current working directory.
 
 **Example:**
 ```bash
-molpatcher --pdb pdbs/fab_base.pdb --itp topology_files/PROB.itp --res 42 --chain B -o /home/user/simulations/ --ff /home/user/master_toppar/
+molpatcher --pdb protein.pdb --itp protein.itp --res 145 --chain B -o ./results/
 ```
 
-## [!WARNING] 
+---
 
-### Important Warning: Geometric Verification
+## Automated Conformational Optimization
 
-**Full steric clash detection is not yet implemented in this version of MolPatcher.** While the `PatchAligner` mathematically superimposes the anchor atoms to optimize the junction geometry, it does not evaluate the surrounding spatial environment for collisions between the newly attached patch and the rest of the protein backbone or adjacent side chains.
+MolPatcher includes a built-in **RotamerSweeper** that automatically resolves steric clashes introduced by the patch. If the initial alignment results in a collision, the tool executes three tiers of search:
 
-**Mandatory Post-Processing:** You must manually open the resulting PDB file in a molecular visualization software (such as PyMOL, Jmol, VMD, or Chimera) to visually verify the patch geometry and ensure there are no severe steric clashes before proceeding to molecular dynamics simulations.
+1.  **Tier 1 (Canonical)**: Tests the most common staggered rotameric states for the target residue.
+2.  **Tier 2 (Systematic Wiggle)**: Performs a fine-grained 30° systematic sweep of the $\chi_4$ dihedral.
+3.  **Tier 3 (Patch Twist)**: If the residue is "stuck," the tool performs 15° rotations around the new junction bond to clear local environment clashes.
 
+The tool provides real-time terminal feedback via an animation spinner and progress indicators during the $O(N^2)$ graph-building phase.
+
+> **Note**: While MolPatcher optimizes for sterics, it is still recommended to visually inspect the resulting PDB in PyMOL or VMD before beginning long-production MD simulations.
