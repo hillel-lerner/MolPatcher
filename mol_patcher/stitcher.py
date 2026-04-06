@@ -20,7 +20,8 @@ class Patchloader:
     
     def get_pfp_pdb(self):
         pfp_path = os.path.join(self.pdb_dir, "pfp_patch_new.pdb")
-        _, pfp_atoms, _, _ = PdbParser.read_file(pfp_path)
+        parser = PdbParser()
+        _, pfp_atoms, _ = parser.read_file(pfp_path)
         return pfp_atoms
 
     
@@ -130,7 +131,7 @@ class Stitcher:
         # Append patch atoms with the LYX designation
         for i, record in enumerate(aligned_patch_atoms):
             if record not in self.patch_deletions and record not in patch_overlap_anchors:
-                filter_patch_records.append(replace(record, res_name="LYX ", 
+                filter_patch_records.append(replace(record, res_name="LYX", 
                                         chain=target_reference.chain, res_seq=target_reference.res_seq, 
                                         seg_id=dynamic_seg_id))
                 filter_patch_atoms.append(replace(self.patch.atoms[i], res_n=target_reference.res_seq, 
@@ -139,7 +140,7 @@ class Stitcher:
         # Rename the preserved base protein atoms at the target site to LYX
         for r in final_records:
             if r.res_seq == target_reference.res_seq and r.chain == target_reference.chain and r.res_name.strip() == "LYS":
-                r.res_name = "LYX "
+                r.res_name = "LYX"
 
         for a in final_atoms:
             if a.res_n == target_reference.res_seq and a.res.strip() == "LYS":
