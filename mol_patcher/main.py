@@ -36,14 +36,34 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     # Locate Anchors
     # Handle empty chains to ensure precise matching
     chain_check = chain.strip() if chain.strip() else ""
+    target_residue_atoms = [r for r in base_mol.records 
+                            if r.res_seq == res_id 
+                            and (not chain_check or r.chain.strip() == chain_check)]
+
+    # Check if the residue even exists in the PDB file
+    if not target_residue_atoms:
+        print(f"Error: Could not find residue {res_id} in chain '{chain_check}'.")
+        return
+
+    # Check if the residue is actually a Lysine
+    actual_res_name = target_residue_atoms[0].res_name.strip()
+    if actual_res_name != "LYS" and actual_res_name != "LYX":
+        print(f"Error: Target residue {res_id} is '{actual_res_name}', not 'LYS' or 'LYX'. MolPatcher requires a Lysine residue.")
+        return
+    # -----------------------------
 
     target_anchors = []
-    for name in ["CE", "CD", "NZ"]:
-        anchor = next(r for r in base_mol.records 
-                    if r.res_seq == res_id 
-                    and r.name.strip() == name 
-                    and (not chain_check or r.chain.strip() == chain_check))
-        target_anchors.append(anchor)
+    
+    try:
+        for name in ["CE", "CD", "NZ"]:
+            anchor = next(r for r in base_mol.records 
+                        if r.res_seq == res_id 
+                        and r.name.strip() == name 
+                        and (not chain_check or r.chain.strip() == chain_check))
+            target_anchors.append(anchor)
+    except StopIteration:
+        print(f"Error: Lysine {res_id} is missing required anchor atoms (CE, CD, or NZ).")
+        return
 
     pfp_anchors = [
         next(r for r in patch_mol.records if r.name.strip() == "C10"),
