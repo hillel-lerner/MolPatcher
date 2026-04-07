@@ -11,7 +11,8 @@ The package consists of modular components designed to parse standard topologies
 * **`geometry.py`**: The engine of the package.
     * **`PatchAligner`**: Uses Kabsch-style vector alignment for optimal 3D superposition.
     * **`MolGraph`**: Builds a NetworkX-based connectivity graph for distance-based bond mapping.
-    * **`StericChecker`**: Evaluates spatial environments using a localized graph-traversal search to identify overlaps based on 2024 Charry/Tkatchenko VdW radii.
+    * **`StericChecker`**: Evaluates spatial environments using a localized graph-traversal search to identify overlaps based on VdW radii.
+        * **Citation**:J. Charry, A. Tkatchenko, J. Chem. Theory Comput. 2024, 20, 7469–7478.
     * **`RotamerSweeper`**: Executes a three-tiered conformational search to find clash-free states.
 * **`stitcher.py`**: Executes the topological surgery. Splices aligned patch coordinates, writes junction bonds, and balances electrostatics.
 * **`topology_tools.py`**: Reindexes the topology modified in `stitcher.py`.
