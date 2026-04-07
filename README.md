@@ -86,4 +86,5 @@ MolPatcher includes a built-in **RotamerSweeper** that automatically resolves st
 The tool provides real-time terminal feedback via an animation spinner and progress indicators during the $O(N^2)$ graph-building phase.
 
 > **Note 1**: While MolPatcher optimizes for sterics, it is still recommended to visually inspect the resulting PDB in PyMOL or VMD before beginning long-production MD simulations.
+
 > **Note 2**: MolPatcher automatically checks the residue numbering and lableing on your input files. It will renumber residues sequentially starting from 1 and clean up `.pdb` and `.itp` files to ensure compatibility with GROMACS processing tools. Always verify that you are modifying the correct residue when your input files contain non-integer residue numbers (e.g., 94B).
