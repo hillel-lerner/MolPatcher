@@ -59,8 +59,8 @@ def fix_itp_residues(input_file, output_file):
     print(f"Done. Processed {modified_count} atoms. Saved clean topology to {output_file}")
 
 if __name__ == "__main__":
-    input_itp = "topology_files/PROBC.itp"
-    output_itp = "topology_files/PROBC_fixed.itp"
+    input_itp = "topology_files/PROC.itp"
+    output_itp = "topology_files/PROC_fixed.itp"
     
     if not os.path.exists(input_itp):
         print(f"Error: {input_itp} not found.")
