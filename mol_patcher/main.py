@@ -19,7 +19,7 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     itp_path = os.path.join(cdir, 'topology_files', itp_file)
     
     # Extract the molecule name for the ITP file (e.g., "PROE" from "PROE.itp")
-    base_mol_name = itp_file.split('.')[0]
+    base_mol_name = os.path.splitext(os.path.basename(itp_path))[0]
     
     # Load Patch Data 
     loader = Patchloader()
