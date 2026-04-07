@@ -21,7 +21,6 @@ The package consists of modular components designed to parse standard topologies
 ## Standalone Utility Functions
 
 * **`combine_ff.py`**: Use to build combined master forcefield files with custom parameters.
-* **`fix_itp_resnr.py`**: Use to fix and reorder any topology files with non-integer residue numbers (e.g., 94B).
 
 ---
 
@@ -44,18 +43,35 @@ MolPatcher uses a conda environment to manage dependencies and install the comma
 
 Once installed, you can execute the pipeline using the `molpatcher` command.
 
+**Command-Line Arguments**
+
+| Argument | Shorthand | Description | Required |
+| :--- | :--- | :--- | :--- |
+| `-pdb`, `--pdb` | | Path to the input PDB coordinate file. | **Yes** |
+| `-itp`, `--itp` | | Path to the input GROMACS `.itp` topology file. | **Yes** |
+| `-res`, `--res` | | The target residue ID (sequential integer). | **Yes** |
+| `-chain`, `--chain` | `-c` | The target chain ID (e.g., A, B, C). | No (Default: `" "`) |
+| `-outdir`, `--outdir` | `-o` | Custom directory for outputs. | No (Default: `./`) |
+| `-ff`, `--ff` | | **Toggle:** Copy `forcefield_master.itp` to output. | No (Flag) |
+
 **Basic Command Structure:**
 ```bash
-molpatcher --pdb [INPUT_PDB] --itp [INPUT_ITP] --res [TARGET_RESIDUE_ID] --chain [TARGET_CHAIN]
+molpatcher -pdb [INPUT_PDB] -itp [INPUT_ITP] -res [TARGET_RESIDUE_ID] -chain [TARGET_CHAIN]
 ```
 
-**Optional Arguments:**
-* `-o`, `--outdir`: Specify a custom directory to save outputs. Defaults to the current working directory.
-
-**Example:**
+**Example Commands**
 ```bash
-molpatcher --pdb protein.pdb --itp protein.itp --res 145 --chain B -o ./results/
+molpatcher -pdb protein.pdb -itp protein.itp -res 145 -chain B -o ./patched_results -ff
 ```
+
+---
+
+## Forcefield Staging (`-ff`)
+
+The `-ff` flag is a project-specific utility designed to streamline workflow for the **6oge** protein system. 
+
+* **Behavior**: When enabled, MolPatcher automatically locates `forcefields/forcefield_master.itp` within the project root and copies it directly into your specific output directory alongside your patched PDB and ITP files.
+* **Note**: This master file is pre-configured for specific parameters. For other protein systems or custom parameters, you can use the provided `combine_ff.py` tool in the `forcefields/` directory to generate a compatible master file before running the patcher.
 
 ---
 
@@ -69,4 +85,5 @@ MolPatcher includes a built-in **RotamerSweeper** that automatically resolves st
 
 The tool provides real-time terminal feedback via an animation spinner and progress indicators during the $O(N^2)$ graph-building phase.
 
-> **Note**: While MolPatcher optimizes for sterics, it is still recommended to visually inspect the resulting PDB in PyMOL or VMD before beginning long-production MD simulations.
+> **Note 1**: While MolPatcher optimizes for sterics, it is still recommended to visually inspect the resulting PDB in PyMOL or VMD before beginning long-production MD simulations.
+> **Note 2**: MolPatcher automatically checks the residue numbering and lableing on your input files. It will renumber residues sequentially starting from 1 and clean up `.pdb` and `.itp` files to ensure compatibility with GROMACS processing tools. Always verify that you are modifying the correct residue when your input files contain non-integer residue numbers (e.g., 94B).
