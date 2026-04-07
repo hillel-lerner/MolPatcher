@@ -3,8 +3,53 @@ import os
 from .mol_record import PdbRecord
 
 class PdbParser:
+    def fix_chain_id(self, records):
+        if not records:
+            return records
+        needs_fix = any(atom.chain == " " for atom in records)
+        if not needs_fix:
+            return records
+            
+        print("   -> Missing chain IDs detected in PDB. Patching via seg_id...")
+        # -----------------------------
+            
+        for atom in records:
+            chain = atom.chain
+            if chain == " ":
+                if atom.seg_id:
+                    chain = atom.seg_id[-1]
+                else:
+                    print(f"No chain identified for atom {atom.serial}, setting to blank.")
+            atom.chain = chain
+        return records
 
     def fix_res_num(self, records):
+        if not records:
+            return records
+
+        needs_fix = False
+        expected_counter = 1
+        last_seen = (records[0].chain, records[0].res_seq, records[0].ins_code)
+        
+        for atom in records:
+            current_res = (atom.chain, atom.res_seq, atom.ins_code)
+            if current_res[0] != last_seen[0]:    # New chain detected
+                expected_counter = 1
+                last_seen = current_res
+            elif current_res != last_seen:        # New residue detected
+                expected_counter += 1
+                last_seen = current_res
+                
+            # If the actual data doesn't match expected counter, flag it.
+            if atom.res_seq != expected_counter or atom.ins_code != " ":
+                needs_fix = True
+                break
+                
+        if not needs_fix:
+            return records
+            
+        print("   -> Non-sequential numbering or insertion codes detected in PDB. Fixing...")
+        
         self.res_data = []
         self.res_counter = 1
         last_seen = (records[0].chain, records[0].res_seq, records[0].ins_code)
@@ -20,18 +65,6 @@ class PdbParser:
             atom.res_seq = self.res_counter
             atom.ins_code = " "
         return records
-    
-    def fix_chain_id(self, records):
-            
-            for atom in records:
-                chain = atom.chain
-                if chain == " ":
-                    if atom.seg_id:
-                        chain = atom.seg_id[-1]
-                    else:
-                        print(f"No chain identified for atom {atom.serial}, setting to blank.")
-                atom.chain = chain
-            return records
 
 
 
@@ -53,12 +86,10 @@ class PdbParser:
 
                 elif line.startswith(('ATOM', 'HETATM')):
                     atom = self.parse_line(line, self.file_name) 
-                    self.atoms.append(atom)
+                    if atom is not None:
+                        self.atoms.append(atom)
 
-        self.new_atoms = self.fix_chain_id(self.atoms)
-        self.final_atoms = self.fix_res_num(self.new_atoms)
-
-        return self.header_lines, self.final_atoms, self.file_name
+        return self.header_lines, self.atoms, self.file_name
 
 
     def parse_line(self, line, file_name):

@@ -4,19 +4,18 @@ import sys, os, shutil
 from mol_patcher.stitcher import Stitcher, Patchloader
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
-from mol_patcher.topology_io import TopologyBuilder
+from mol_patcher.topology_io import TopologyParser, TopologyBuilder
 from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker, RotamerSweeper
 from mol_patcher import utilities
 
-def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
+def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
 
     run_folder_name = f"patched_lys_{res_id}"
     final_outdir = os.path.join(outdir, run_folder_name)
     os.makedirs(final_outdir, exist_ok=True)
 
-    cdir = os.path.dirname(os.path.abspath(__file__))
-    pdb_path = os.path.join(cdir, 'pdbs', pdb_file)
-    itp_path = os.path.join(cdir, 'topology_files', itp_file)
+    pdb_path = pdb_file
+    itp_path = itp_file
     
     # Extract the molecule name for the ITP file (e.g., "PROE" from "PROE.itp")
     base_mol_name = os.path.splitext(os.path.basename(itp_path))[0]
@@ -29,9 +28,18 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
 
     # Load Base Protein Data
     parser = PdbParser()
-    headers, base_records, t_name = parser.read_file(pdb_path) 
+    headers, raw_records, t_name = parser.read_file(pdb_path) 
+    fixed_chains = parser.fix_chain_id(raw_records)
+    base_records = parser.fix_res_num(fixed_chains)
+
     base_mol = Mol(name=t_name, records=base_records, atoms=[], bonds=[], pairs=[], angles=[], dihs=[])
-    base_mol.load_itp(itp_path)
+    
+    safe_itp_path = TopologyParser.clean_itp_file(itp_path, final_outdir)
+    base_mol.load_itp(safe_itp_path)
+    
+    # Remove temporary file
+    if safe_itp_path != itp_path and os.path.exists(safe_itp_path):
+        os.remove(safe_itp_path)
 
     # Locate Anchors
     # Handle empty chains to ensure precise matching
@@ -47,8 +55,10 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
 
     # Check if the residue is actually a Lysine
     actual_res_name = target_residue_atoms[0].res_name.strip()
-    if actual_res_name != "LYS" and actual_res_name != "LYX":
-        print(f"Error: Target residue {res_id} is '{actual_res_name}', not 'LYS' or 'LYX'. MolPatcher requires a Lysine residue.")
+    if actual_res_name == "LYX":
+        print(f"Warning: Target residue '{actual_res_name} {res_id}' is already modified by MolPatcher.")
+    elif actual_res_name != "LYS" and actual_res_name != "LYX":
+        print(f"Error: Target residue {res_id} is '{actual_res_name}', not 'LYS'. MolPatcher requires a Lysine residue.")
         return
     # -----------------------------
 
@@ -93,7 +103,7 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     static_atoms = [a for a in stitched_mol.records if a.res_seq != res_id]
 
     checker = StericChecker(graph, moving_atoms, static_atoms, tolerance=0.75)
-    sweeper = RotamerSweeper(stitched_mol, graph, res_id)
+    sweeper = RotamerSweeper(stitched_mol, graph, res_id, chain=chain_check)
 
     print(f"Starting optimization for {len(moving_atoms)} atoms...")
     success = sweeper.run_sweep(checker)
@@ -109,17 +119,6 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
 
     PdbBuilder(pdb_outfile, stitched_mol.records, headers).write_pdb()
     TopologyBuilder(stitched_mol, itp_outfile, base_mol_name).write_itp()
-
-    # Stage forcefield (optional)
-    if ff_path is not None:
-        if os.path.exists(ff_path):
-            dest_ff_dir = os.path.join(final_outdir, "toppar")
-            shutil.copytree(ff_path, dest_ff_dir, dirs_exist_ok=True)
-            print(f"Master forcefield copied to {dest_ff_dir}")
-        else:
-            print(f"Warning: Forcefield path {ff_path} not found. Skipping copy.")
-
-
     
     box_size, applied_buffer = utilities.get_optimal_box_size(
         stitched_mol.records, 
@@ -132,13 +131,26 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, ff_path=None):
     print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
 
+
+    if copy_ff:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ff_src = os.path.join(project_root, 'forcefields', 'forcefield_master.itp')
+        ff_dst = os.path.join(final_outdir, 'forcefield_master.itp')
+
+        if os.path.exists(ff_src):
+            shutil.copy2(ff_src, ff_dst)
+            print(f"   --> Copied master forcefield to: {final_outdir}")
+        else:
+            print(f"Warning: Master forcefield not found at {ff_src}")
+
 def main():
     parser = argparse.ArgumentParser(description="Patch a ligand into a protein residue.")
-    parser.add_argument("--pdb", required=True, help="Input PDB file")
-    parser.add_argument("--itp", required=True, help="Input ITP file")
-    parser.add_argument("--res", type=int, required=True, help="Target residue ID")
-    parser.add_argument("--chain", default=" ", help="Chain ID")
+    parser.add_argument("-pdb", "--pdb", required=True, help="Input PDB file")
+    parser.add_argument("-itp", "--itp", required=True, help="Input ITP file")
+    parser.add_argument("-res", "--res", type=int, required=True, help="Target residue ID")
+    parser.add_argument("-c", "-chain", "--chain", default=" ", help="Chain ID")
     parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
+    parser.add_argument("-ff", "--ff", action="store_true", help="Copy master forcefield")
     
     args = parser.parse_args()
     
@@ -146,7 +158,7 @@ def main():
     pdb_abs = os.path.abspath(args.pdb)
     itp_abs = os.path.abspath(args.itp)
     
-    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir)
+    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir, copy_ff=args.ff)
 
 if __name__ == "__main__":
     main()

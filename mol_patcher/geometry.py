@@ -6,6 +6,7 @@ from .utilities import get_distance, get_dihedral
 from .mol_record import Mol
 import networkx as nx
 import math
+import copy
 import sys
 
     
@@ -38,15 +39,16 @@ def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
         pivot = np.array(pivot_coord)
         
         # Transform each atom
+        if not atoms:
+            return None # Return None if there is nothing to rotate
+            
+        final_pos = None
         for atom in atoms:
             pos = np.array([atom.x, atom.y, atom.z])
+            final_pos = rot_obj.apply(pos - pivot) + pivot
+            atom.x, atom.y, atom.z = final_pos
             
-            # Translate atom so pivot is at origin, rotate, then translate back
-            new_pos = rot_obj.apply(pos - pivot) + pivot
-
-            # Update the PdbRecord attributes
-            atom.x, atom.y, atom.z = new_pos
-        return new_pos
+        return final_pos
 
 class PatchAligner:
     """
@@ -105,6 +107,14 @@ class MolGraph:
         
         # Automatically build the graph upon initialization
         self._build_matrix()
+
+    def copy(self):
+        """
+        Creates a shallow copy of the MolGraph. 
+        """
+        new_instance = copy.copy(self)
+        new_instance.nx_graph = self.nx_graph.copy()
+        return new_instance
 
     def _build_matrix(self):
         """Internal method: executes distance checks and builds the connectivity matrix."""
@@ -243,31 +253,25 @@ class StericChecker:
     
 
 class RotamerSweeper:
-
     """
     Coordinates side-chain and patch rotations to find a valid protein conformation.
     Uses a three-tiered search strategy (Golden, Wiggle, and Patch-Tweak).
     """
 
-    def __init__(self, mol, mol_graph, res_seq):
-        """
-        Initializes the sweeper for a specific lysine.
-        
-        :param mol: The Mol object containing records and atoms.
-        :param mol_graph: The pre-built MolGraph (connectivity matrix).
-        :param res_seq: The residue number to be rotated (i.e., target Lysine).
-        """
+    def __init__(self, mol, mol_graph, res_seq, chain=" "):
         self.mol = mol
         self.graph = mol_graph
         self.res_seq = res_seq
+        self.chain = chain.strip()
+
         self.chi_definitions = [
             ['N', 'CA', 'CB', 'CG'],   # chi1
             ['CA', 'CB', 'CG', 'CD'],  # chi2
             ['CB', 'CG', 'CD', 'CE'],  # chi3
             ['CG', 'CD', 'CE', 'NZ']   # chi4
         ]
-        self.serial_to_idx = {a.serial: i for i, a in enumerate(self.mol.records)}
-
+        # Use object ID for unique mapping to avoid Serial Number duplicates
+        self.obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
 
     def run_sweep(self, steric_checker):
         """Executes the three-tiered conformational search strategy."""
@@ -321,16 +325,23 @@ class RotamerSweeper:
         coords = [[a.x, a.y, a.z] for a in atom_records]
         delta = target_angle - get_dihedral(*coords)
         
-        # Pivot (CA) stays still, Axis (CB) defines the rotation vector
-        moving_atoms = self.get_downstream_atoms(self.serial_to_idx[atom_records[1].serial], 
-                                            self.serial_to_idx[atom_records[2].serial])
+        # Use object ID to look up internal graph index
+        pivot_idx = self.obj_to_idx[id(atom_records[1])]
+        axis_idx = self.obj_to_idx[id(atom_records[2])]
+
+        moving_atoms = self.get_downstream_atoms(pivot_idx, axis_idx)
         rotate_dihedral(moving_atoms, coords[1], coords[2], delta)
 
     def attempt_patch_twist(self, steric_checker):
         """Rotates only the patch molecule in 15-degree steps."""
         nz = self.get_atom_by_name('NZ')
         c7 = self.get_atom_by_name('C7') 
-        moving_atoms = self.get_downstream_atoms(self.serial_to_idx[nz.serial], self.serial_to_idx[c7.serial])
+        
+        # Use object ID to look up internal graph index
+        pivot_idx = self.obj_to_idx[id(nz)]
+        axis_idx = self.obj_to_idx[id(c7)]
+        
+        moving_atoms = self.get_downstream_atoms(pivot_idx, axis_idx)
 
         spinner = ['|', '/', '-', '\\']
         angles_t3 = list(range(0, 360, 15))
@@ -339,6 +350,7 @@ class RotamerSweeper:
             sys.stdout.write(f'\rTier 3 Progress... {spinner[i % 4]}')
             sys.stdout.flush()
             
+            # This is cumulative: it adds 15 degrees to the CURRENT position every loop
             rotate_dihedral(moving_atoms, (nz.x, nz.y, nz.z), (c7.x, c7.y, c7.z), 15)
             if not steric_checker.check_clashes():
                 sys.stdout.write('\b Success!\n')
@@ -349,12 +361,32 @@ class RotamerSweeper:
         return False
 
     def get_atom_by_name(self, name):
-        """Fetches the PdbRecord matching the name within the target residue."""
-        return next(r for r in self.mol.records if r.res_seq == self.res_seq and r.name.strip() == name)
+        """Fetches the PdbRecord matching name, residue, AND chain."""
+        try:
+            # Added self.chain.strip() check here to prevent grabbing atoms from other chains
+            return next(r for r in self.mol.records 
+                        if r.res_seq == self.res_seq 
+                        and r.name.strip() == name
+                        and r.chain.strip() == self.chain)
+        except StopIteration:
+            print(f"Error: Could not find atom '{name}' in residue {self.res_seq} chain '{self.chain}'")
+            raise
 
     def get_downstream_atoms(self, pivot_idx, axis_idx):
         """Uses graph connectivity to identify the side-chain segment to be moved."""
-        temp_graph = self.graph.nx_graph.copy()
-        temp_graph.remove_edge(pivot_idx, axis_idx)
-        moving_indices = nx.node_connected_component(temp_graph, axis_idx)
+        temp_mol_graph = self.graph.copy()
+        temp_nx_graph = temp_mol_graph.nx_graph
+
+        if temp_nx_graph.has_edge(pivot_idx, axis_idx):
+            temp_nx_graph.remove_edge(pivot_idx, axis_idx)
+        else:
+            # If the edge is missing, we can't define downstream.
+            p_rec = self.mol.records[pivot_idx]
+            a_rec = self.mol.records[axis_idx]
+            dist = get_distance((p_rec.x, p_rec.y, p_rec.z), (a_rec.x, a_rec.y, a_rec.z))
+            print(f"WARNING: Bond {pivot_idx}-{axis_idx} not found in graph. Dist: {dist:.3f}")
+            return []
+
+        # Find the component containing the axis (the "moving" part of the bond)
+        moving_indices = nx.node_connected_component(temp_nx_graph, axis_idx)
         return [self.mol.records[i] for i in moving_indices]

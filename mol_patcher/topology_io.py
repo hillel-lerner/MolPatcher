@@ -1,7 +1,78 @@
+import os
 from .mol_record import ItpAtom, ItpBond, ItpAngle, ItpDih, ItpPair
 from .topology_tools import reindex_topology
 
 class TopologyParser:
+
+    @staticmethod
+    def clean_itp_file(itp_path, temp):
+        """Scans the ITP file for non-integer residues. Creates a fixed copy if needed."""
+        needs_fix = False
+        with open(itp_path, 'r') as f:
+            in_atoms = False
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("[ atoms ]"):
+                    in_atoms = True
+                    continue
+                elif stripped.startswith("[") and in_atoms:
+                    break
+                
+                if in_atoms and stripped and not stripped.startswith(';'):
+                    parts = stripped.split()
+                    if len(parts) > 2 and not parts[2].isdigit():
+                        needs_fix = True
+                        break
+
+        # If all residues are integers, proceed with the original file
+        if not needs_fix:
+            return itp_path
+
+        print(f"Warning: Non-integer residue detected in {os.path.basename(itp_path)}. Cleaning topology before loading...")
+        clean_itp_path = os.path.join(temp, "temp_sanitized.itp")
+        
+        with open(itp_path, 'r') as infile, open(clean_itp_path, 'w') as outfile:
+            in_atoms = False
+            res_counter = 1
+            last_seen_raw = None
+            
+            for line in infile:
+                if line.strip().startswith("[ atoms ]"):
+                    in_atoms = True
+                    outfile.write(line)
+                    continue
+                elif line.strip().startswith("[") and in_atoms:
+                    in_atoms = False
+
+                if in_atoms and line.strip() and not line.strip().startswith(';'):
+                    parts = line.split()
+                    raw_res = parts[2]
+                    
+                    base_int_str = "".join(filter(str.isdigit, raw_res))
+                    base_int = int(base_int_str) if base_int_str else 0
+
+                    if last_seen_raw is None:
+                        last_seen_raw = raw_res
+                        res_counter = 1
+                    elif base_int == 1 and raw_res != last_seen_raw:
+                        res_counter = 1
+                        last_seen_raw = raw_res
+                    elif raw_res != last_seen_raw:
+                        res_counter += 1
+                        last_seen_raw = raw_res
+
+                    parts[2] = str(res_counter)
+                    
+                    formatted_line = f"{parts[0]:>6} {parts[1]:>10} {parts[2]:>6} {parts[3]:>6} {parts[4]:>6} {parts[5]:>6} {parts[6]:>12} {parts[7]:>12}"
+                    if len(parts) > 8:
+                        formatted_line += "   " + " ".join(parts[8:])
+                    outfile.write(formatted_line + "\n")
+                else:
+                    outfile.write(line)
+                    
+        return clean_itp_path
+
+
     @staticmethod
     def read_file(filepath):
         atoms, bonds, pairs, angles, dihs = [], [], [], [], []
