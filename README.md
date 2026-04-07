@@ -45,14 +45,14 @@ Once installed, you can execute the pipeline using the `molpatcher` command.
 
 **Command-Line Arguments**
 
-| Argument | Shorthand | Description | Required |
-| :--- | :--- | :--- | :--- |
-| `-pdb`, `--pdb` | | Path to the input PDB coordinate file. | **Yes** |
-| `-itp`, `--itp` | | Path to the input GROMACS `.itp` topology file. | **Yes** |
-| `-res`, `--res` | | The target residue ID (sequential integer). | **Yes** |
-| `-chain`, `--chain` | `-c` | The target chain ID (e.g., A, B, C). | No (Default: `" "`) |
-| `-outdir`, `--outdir` | `-o` | Custom directory for outputs. | No (Default: `./`) |
-| `-ff`, `--ff` | | **Toggle:** Copy `forcefield_master.itp` to output. | No (Flag) |
+| Argument | Description | Required |
+| :--- | :--- | :--- |
+| `-pdb`, `--pdb` | Path to the input PDB coordinate file. | **Yes** |
+| `-itp`, `--itp` | Path to the input GROMACS `.itp` topology file. | **Yes** |
+| `-res`, `--res` | The target residue ID (sequential integer). | **Yes** |
+| `-chain`, `--chain`, `-c` | The target chain ID (e.g., A, B, C). | No (Default: `" "`) |
+| `-outdir`, `--outdir`, `-o` | Custom directory for outputs. | No (Default: `./`) |
+| `-ff`, `--ff` | **Toggle:** Copy `forcefield_master.itp` to output. | No (Flag) |
 
 **Basic Command Structure:**
 ```bash
