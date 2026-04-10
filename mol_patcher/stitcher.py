@@ -246,7 +246,7 @@ class Stitcher:
 
 
         # Calculate the total global deficit
-        current_sum = sum(float(a.charge) for a in stitched_mol.atoms)
+        current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
         target_sum = round(current_sum)
         delta_q = target_sum - current_sum
 
