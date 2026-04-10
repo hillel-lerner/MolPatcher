@@ -1,10 +1,22 @@
 import os
 
 def build_master_forcefield_complete(base_path, pfp_path, modded_ff, output_path):
+    """
+    Merges the base protein forcefield, the patch forcefield, and specific manual 
+    modifications into a single, deduplicated master forcefield ITP file.
+
+    :param base_path: (str) Path to the original unpatched protein forcefield.
+    :param pfp_path: (str) Path to the patch molecule forcefield.
+    :param modded_ff: (str) Path to the forcefield containing manual modifications.
+    :param output_path: (str) Path where the final master forcefield will be saved.
+    :return: None. Writes the combined forcefield to the specified output path.
+    """
+
     mods = {}
     
     def add_mod(sec, line, tag):
-        # Prevent proper (9) and improper (2) dihedrals from mixing
+        # GROMACS uses funct 1 or 9 for proper dihedrals, and 2 or 4 for impropers.
+        # This explicitly separates them to prevent parameters from mixing during the merge.
         if sec == "[ dihedraltypes ]":
             parts = line.split(';')[0].split()
             if len(parts) >= 5:
@@ -93,10 +105,12 @@ def build_master_forcefield_complete(base_path, pfp_path, modded_ff, output_path
             if current_sec:
                 combined_lines = section_lines + mods.get(active_mod_key, [])
                 
-                # CRITICAL FIX: No deduplication and no sorting for matrices/defaults!
+                # Matrix-style ITP sections + global defaults require exact line ordering. 
+                # Deduplicating or sorting these will break the forcefield.
                 if current_sec in ["[ defaults ]", "[ cmaptypes ]"]:
                     unique_lines = combined_lines
                 else:
+                    # Standardizes whitespace to identify and remove duplicate parameter definitions
                     seen_standard = set()
                     unique_lines = []
                     for l in combined_lines:

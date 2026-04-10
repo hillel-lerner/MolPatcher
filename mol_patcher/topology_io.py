@@ -3,10 +3,21 @@ from .mol_record import ItpAtom, ItpBond, ItpAngle, ItpDih, ItpPair
 from .topology_tools import reindex_topology
 
 class TopologyParser:
+    """
+    Handles parsing and cleanup of GROMACS .itp topology files.
+    """
 
     @staticmethod
     def clean_itp_file(itp_path, temp):
-        """Scans the ITP file for non-integer residues. Creates a fixed copy if needed."""
+        """
+        Scans the ITP file for non-integer residue designations (e.g., '52A'). 
+        If found, generates a sanitized temporary copy with sequential integers to prevent parser crashes.
+        
+        :param itp_path: (str) Path to the input .itp file.
+        :param temp: (str) Path to the output directory for the temporary sanitized file.
+        :return: (str) Path to the clean .itp file (returns original path if no fix was needed).
+        """
+
         needs_fix = False
         with open(itp_path, 'r') as f:
             in_atoms = False
@@ -75,6 +86,13 @@ class TopologyParser:
 
     @staticmethod
     def read_file(filepath):
+        """
+        Reads a clean GROMACS .itp file and extracts topological parameters.
+        
+        :param filepath: (str) Path to the .itp file.
+        :return: (tuple) Lists containing (ItpAtom, ItpBond, ItpPair, ItpAngle, ItpDih) objects.
+        """
+
         atoms, bonds, pairs, angles, dihs = [], [], [], [], []
         current_section = None
 
@@ -121,14 +139,25 @@ class TopologyParser:
         return atoms, bonds, pairs, angles, dihs
 
 class TopologyBuilder:
+    """
+    Handles formatting and writing topology objects back into a GROMACS-compatible .itp file.
+    """
+
     def __init__(self, mol, filename, mol_name):
-        """Initializes the builder with the molecule, destination path, and strict mol_name."""
+        """
+        Constructs the TopologyBuilder.
+        
+        :param mol: (Mol) The molecule object containing the topology to write.
+        :param filename: (str) The output file path.
+        :param mol_name: (str) The strict molecule name to be written in the [ moleculetype ] header.
+        """
+
         self.mol = mol
         self.filename = filename
         self.mol_name = mol_name
     
     def write_itp(self):
-        """Writes a GROMACS ITP file after ensuring internal indices are synced."""
+        # Writes a GROMACS ITP file after ensuring internal indices are synced.
         # Trigger the Mol object's internal reindexing to sync a1, a2, etc.
         reindex_topology(self.mol)
 

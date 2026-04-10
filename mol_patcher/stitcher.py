@@ -9,7 +9,9 @@ from .pdb_io import PdbParser
 
 
 class Patchloader:
-    """Loads the ligand patch pdb and itp files into mol objects for processing"""
+    """
+    Locates and loads the standard patch ligand PDB and ITP files into Mol objects for processing.
+    """
 
     def __init__(self):
         self.f = os.path.abspath(__file__)
@@ -32,7 +34,10 @@ class Patchloader:
 
 
 class Stitcher:
-    """Performs the molecular surgury to attach the base molecule and the patch molecule"""
+    """
+    Performs the topological and geometric surgery required to attach a patch molecule 
+    to a base protein molecule.
+    """
     def __init__(self, base_mol, patch_mol, target_res_id):
         self.base = base_mol
         self.patch = patch_mol
@@ -45,7 +50,14 @@ class Stitcher:
         self.junction_interactions = []
 
     def get_bonded_hydrogens(self, mol, mol_graph, anchors):
-        """Uses the pre-built molecular graph to instantly find hydrogens bonded to the anchor atoms."""
+        """
+        Uses the pre-built molecular connectivity graph to identify hydrogens bonded to specific anchors.
+        
+        :param mol: (Mol) The molecule object containing the records.
+        :param mol_graph: (MolGraph) The connectivity matrix/graph of the molecule.
+        :param anchors: (list) PdbRecord objects representing the anchor atoms.
+        :return: (list) A list of PdbRecord objects representing the bonded hydrogens to be deleted.
+        """
         h_to_delete = []
         for anchor in anchors:
             # Find the exact index of the anchor in the molecule's records using its serial number
@@ -62,7 +74,14 @@ class Stitcher:
 
     def build_bridge_topol(self, stitched_mol, stitched_graph, nz_pdb_idx, c7_pdb_idx):
         """
-        Uses the connectivity matrix to check for missing topology data in the patched molecule
+        Uses the connectivity matrix to identify and generate missing angle and dihedral 
+        topology parameters across the newly formed junction bond.
+        
+        :param stitched_mol: (Mol) The combined molecule object.
+        :param stitched_graph: (MolGraph) The connectivity graph of the combined molecule.
+        :param nz_pdb_idx: (int) The Python list index of the base protein anchor (e.g., NZ).
+        :param c7_pdb_idx: (int) The Python list index of the patch anchor (e.g., C7).
+        :return: (tuple) Two lists containing the angle tuples and dihedral tuples to be appended.
         """
         nz_neighbors = list(stitched_graph.nx_graph.neighbors(nz_pdb_idx))
         c7_neighbors = list(stitched_graph.nx_graph.neighbors(c7_pdb_idx))
@@ -96,6 +115,18 @@ class Stitcher:
     
 
     def stitch_molecules(self, aligned_patch_atoms, target_reference, target_anchors, patch_anchor_names=["N", "C10", "C11"], patch_bridge_name="C7"):
+        """
+        Executes the full attachment pipeline: deletes overlapping atoms, offsets topologies, 
+        splices lists, generates junction bonds, and balances electrostatics.
+        
+        :param aligned_patch_atoms: (list) PdbRecord objects of the patch translated to the target site.
+        :param target_reference: (PdbRecord) The primary target anchor used for chain/residue designation.
+        :param target_anchors: (list) PdbRecord objects of the protein attachment site.
+        :param patch_anchor_names: (list) String names of the patch atoms that will overlap and be deleted.
+        :param patch_bridge_name: (str) String name of the patch atom forming the new bond.
+        :return: (Mol) The final stitched, reindexed, and charge-balanced molecule.
+        """
+        
         anchor_serial = target_anchors[2].serial
         anchor_res_seq = target_anchors[2].res_seq
         anchor_name = target_anchors[2].name.strip()
@@ -221,16 +252,28 @@ class Stitcher:
         return stitched_mol
     
     def update_atom_types(self, stitched_mol, type_map):
-        """Updates specific atom types at the junction (e.g., NZ -> NG311)."""
+        """
+        Updates specific atom types at the junction (e.g., NZ -> NG311).
+        """
+
         for atom in stitched_mol.atoms:
             if atom.res_n == self.res_id and atom.atom.strip() in type_map:
                 atom.type = type_map[atom.atom.strip()]
         return stitched_mol
     
     def balance_electrostatics(self, stitched_mol):
-
-        # Update the anchor charges first
-        # Dictionary maps the base atom name to its equivalent patch atom name
+        """
+        Balances the electrostatic charge of the patched residue to ensure a perfect 
+        integer net charge. It updates the heavy anchor atoms to match the patch 
+        definitions and distributes the resulting fractional deficit across specific 
+        hydrogen sinks.
+        
+        :param stitched_mol: (Mol) The combined molecule object containing the new junction.
+        :return: (Mol) The molecule with updated and balanced fractional charges.
+        """
+        # --- ANCHOR CHARGE INHERITANCE ---
+        # The base protein anchors inherit the exact partial charges from the patch 
+        # topology to ensure the new junction bond is electrostatically stable.
         anchor_map = {'NZ': 'N', 'CE': 'C10', 'CD': 'C11'}
         
         for base_atom in stitched_mol.atoms:
@@ -242,16 +285,23 @@ class Stitcher:
                 
                 old_charge = float(base_atom.charge)
                 base_atom.charge = float(patch_equiv_atom.charge)
+
+                # Append a comment to the ITP line to show what changed
                 base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
 
 
-        # Calculate the total global deficit
+        # --- LOCAL DEFICIT CALCULATION ---
+        # Sum only the patched residue. This prevents protein-wide charge variance due to floating point noise. 
         current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
+        
+        # Determine the ideal integer charge and calculate the exact fractional lost/gained
         target_sum = round(current_sum)
         delta_q = target_sum - current_sum
 
 
-        # Distribute the deficit across the sinks to achieve perfect integer
+        # --- SINK DISTRIBUTION ---
+        # Evenly spread the fractional delta_q across non-critical aliphatic hydrogens.
+        # This restores the integer charge without changing any heavy atom electrostatics.
         sinks = ['HD1' , 'HD2', 'HG1', 'HG2', 'H2', 'H3', 'H4', 'H5', 'H6']
         q_per_atom = delta_q / len(sinks)
 
@@ -261,8 +311,8 @@ class Stitcher:
                 i.charge = current_charge + q_per_atom
                 i.comment = f"; old charge: {current_charge:.4f}, delta q = {q_per_atom:.4f}"
 
-        # Final verification print
-        total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms)
+        # Final verification print (calculates the local residue to ensure perfect integer)
+        total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
         print(f"Total Stitched Charge: {total_stitched_charge:.6f}")
 
         return stitched_mol

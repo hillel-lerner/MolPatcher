@@ -66,6 +66,10 @@ class ItpDih:
 
 @dataclass
 class Mol:
+    """
+    A standardized container for molecular topology and coordinate data.
+    Aggregates PDB records and GROMACS ITP topology lists into a single accessible object.
+    """
     name: str
     records: List[PdbRecord] = field(default_factory=list)
     atoms: List[ItpAtom] = field(default_factory=list)
@@ -75,11 +79,26 @@ class Mol:
     dihs: List[ItpDih] = field(default_factory=list)
     
     def load_itp(self, itp_path: str):
+        """
+        Parses a GROMACS ITP file and populates the molecule's topology lists.
+        
+        :param itp_path: (str) Absolute or relative path to the .itp file.
+        :return: None. Updates internal lists.
+        """
         from .topology_io import TopologyParser
         a, b, p, ang, d = TopologyParser.read_file(itp_path)
         self.atoms, self.bonds, self.pairs, self.angles, self.dihs = a, b, p, ang, d
 
     def load_pdb(self, res_seq: int, chain: str, res_name: str, atom_name: str) -> PdbRecord:
+        """
+        Retrieves a specific PdbRecord from the molecule based on its identifiers.
+        
+        :param res_seq: (int) The residue sequence number.
+        :param chain: (str) The chain identifier.
+        :param res_name: (str) The 3-letter residue name.
+        :param atom_name: (str) The specific atom name (e.g., 'CA', 'NZ').
+        :return: (PdbRecord) The matching atom record.
+        """
         for atom in self.records:
             if atom.res_seq == res_seq and atom.chain == chain and atom.res_name == res_name and atom.name == atom_name:
                 return atom

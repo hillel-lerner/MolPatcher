@@ -4,23 +4,38 @@ from scipy.spatial.distance import pdist
 
 def get_distance(at1, at2):
     """
-    Finds the distance between two atoms.
-    :param at1: (list/tuple) xyz coordinates of atom1
-    :param at2: (list/tuple) xyz coordinates of atom2
-    :return: (float) the distance between 2 atoms
+    Calculates the Euclidean distance between two atoms in 3D space.
+
+    :param at1: (list/tuple) The (x, y, z) coordinates of the first atom.
+    :param at2: (list/tuple) The (x, y, z) coordinates of the second atom.
+    :return: (float) The distance between the two atoms.
     """
+    
     return math.sqrt((at1[0]-at2[0])**2 + (at1[1]-at2[1])**2 + (at1[2]-at2[2])**2)
 
 def get_vector(coord1, coord2):
-    """Returns the vector pointing from coord1 to coord2."""
+    """
+    Calculates the directional vector pointing from the first coordinate to the second.
+    
+    :param coord1: (list/tuple) The starting (x, y, z) coordinates.
+    :param coord2: (list/tuple) The ending (x, y, z) coordinates.
+    :return: (numpy.ndarray) The resulting directional vector.
+    """
+
     return np.array(coord2) - np.array(coord1)
 
 def get_optimal_box_size(records, buffer_percent=0.33, min_buffer_nm=3.0):
     """
     Calculates the longest diagonal of the molecule and adds a dynamic box size buffer.
-    The buffer scales with the molecule's size, but enforces a minimum buffer (2.0 nm) to satisfy PBC cutoffs.
-    Returns the dimension and the applied buffer in nanometers.
+    The buffer scales with the molecule's size, but enforces a minimum buffer 
+    to satisfy periodic boundary condition (PBC) cutoffs.
+    
+    :param records: (list) PdbRecord objects representing the molecule.
+    :param buffer_percent: (float) The percentage of the max dimension to use as a buffer.
+    :param min_buffer_nm: (float) The absolute minimum buffer size in nanometers.
+    :return: (tuple) Optimal box size and the applied buffer, both in nanometers.
     """
+
     coords = np.array([[a.x, a.y, a.z] for a in records])
     
     # pdist calculates all pairwise distances
@@ -40,8 +55,14 @@ def get_optimal_box_size(records, buffer_percent=0.33, min_buffer_nm=3.0):
 
 def get_dihedral(p1, p2, p3, p4):
     """
-    Calculates the dihedral angle (torsion angle) in degrees between four points.
+    Calculates the dihedral (torsion) angle in degrees between four points.
     The sign follows the IUPAC convention (clockwise is positive).
+    
+    :param p1: (list/tuple) The (x, y, z) coordinates of the first atom.
+    :param p2: (list/tuple) The (x, y, z) coordinates of the second atom (axis start).
+    :param p3: (list/tuple) The (x, y, z) coordinates of the third atom (axis end).
+    :param p4: (list/tuple) The (x, y, z) coordinates of the fourth atom.
+    :return: (float) The dihedral angle in degrees (-180 to +180).
     """
     # Create vectors between the atoms
     b0 = -1.0 * (np.array(p2) - np.array(p1))

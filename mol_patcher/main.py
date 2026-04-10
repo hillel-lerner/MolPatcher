@@ -9,6 +9,19 @@ from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker, RotamerS
 from mol_patcher import utilities
 
 def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
+    
+    """
+    Orchestrates the entire MolPatcher pipeline: loading data, aligning the patch,
+    stitching topologies, performing rotamer optimization, and saving final outputs.
+    
+    :param pdb_file: (str) Absolute path to the input PDB file.
+    :param res_id: (int) The target residue ID for the patch.
+    :param chain: (str) The target chain ID.
+    :param itp_file: (str) Absolute path to the input ITP topology file.
+    :param outdir: (str) Directory where the results folder will be created.
+    :param copy_ff: (bool) If True, copies the master forcefield to the output directory.
+    :return: None. Writes the patched PDB and ITP files to disk.
+    """
 
     run_folder_name = f"patched_lys_{res_id}"
     final_outdir = os.path.join(outdir, run_folder_name)
@@ -144,6 +157,11 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
             print(f"Warning: Master forcefield not found at {ff_src}")
 
 def main():
+
+    """
+    Command-line entry point. Parses CLI arguments and triggers the run_patch pipeline.
+    """
+
     parser = argparse.ArgumentParser(description="Patch a ligand into a protein residue.")
     parser.add_argument("-pdb", "--pdb", required=True, help="Input PDB file")
     parser.add_argument("-itp", "--itp", required=True, help="Input ITP file")

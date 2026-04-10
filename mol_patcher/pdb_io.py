@@ -3,15 +3,25 @@ import os
 from .mol_record import PdbRecord
 
 class PdbParser:
+    """
+    Handles reading, parsing, and cleaning of PDB coordinate files.
+    """
+
     def fix_chain_id(self, records):
+        """
+        Identifies missing chain IDs and attempts to patch them using the segment ID.
+        
+        :param records: (list) PdbRecord objects parsed from the file.
+        :return: (list) The updated PdbRecord objects.
+        """
+
         if not records:
             return records
         needs_fix = any(atom.chain == " " for atom in records)
         if not needs_fix:
             return records
-            
+
         print("   -> Missing chain IDs detected in PDB. Patching via seg_id...")
-        # -----------------------------
             
         for atom in records:
             chain = atom.chain
@@ -24,6 +34,14 @@ class PdbParser:
         return records
 
     def fix_res_num(self, records):
+        """
+        Detects non-sequential residue numbering or insertion codes and dynamically 
+        renumbers the entire chain sequentially starting from 1.
+        
+        :param records: (list) PdbRecord objects.
+        :return: (list) The renumbered PdbRecord objects.
+        """
+
         if not records:
             return records
 
@@ -69,6 +87,12 @@ class PdbParser:
 
 
     def read_file(self, file):
+        """
+        Reads a PDB file and extracts headers and ATOM/HETATM records.
+        
+        :param file: (str) Path to the PDB file.
+        :return: (tuple) A tuple containing (header_lines_list, PdbRecord_list, file_name_string).
+        """
 
         self.file_name = os.path.basename(file)
 
@@ -115,8 +139,18 @@ class PdbParser:
             return None
         
 class PdbBuilder:
+    """
+    Handles formatting and writing PdbRecord objects back into standard PDB file structure.
+    """
 
-    def __init__(self, new_pdb_name, atom_list, headers=None, ter_line=None):
+    def __init__(self, new_pdb_name, atom_list, headers=None):
+        """
+        Constructs the PdbBuilder.
+        
+        :param new_pdb_name: (str) The output file path.
+        :param atom_list: (list) PdbRecord objects to be written.
+        :param headers: (list, optional) Original PDB header strings to preserve.
+        """
         self.new_pdb_name = new_pdb_name
         self.atom_list = atom_list
         self.headers = headers if headers else []

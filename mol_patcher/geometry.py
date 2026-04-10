@@ -11,20 +11,25 @@ import sys
 
     
 def get_coords_array(atoms: List[PdbRecord]) -> np.ndarray:
+
     """
     Extracts an Nx3 numpy array of coordinates from any list of PdbRecord objects.
     """
+
     return np.array([[a.x, a.y, a.z] for a in atoms])
 
 def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
+        
         """
         Applies a quaternion rotation to a list of atoms around a specific bond vector.
         
-        :param atoms: List of PdbRecord objects to be rotated.
-        :param pivot_coord: (x,y,z) of the stationary atom (e.g., CA).
-        :param axis_coord: (x,y,z) of the atom defining the rotation axis (e.g., CB).
-        :param angle_degrees: The amount to rotate in degrees.
+        :param atoms: (list) PdbRecord objects to be rotated.
+        :param pivot_coord: (tuple/list) The (x,y,z) coordinates of the stationary atom.
+        :param axis_coord: (tuple/list) The (x,y,z) coordinates of the atom defining the rotation axis.
+        :param angle_degrees: (float) The amount to rotate in degrees.
+        :return: (numpy.ndarray) The final transformed coordinate array.
         """
+
         # Define and normalize the axis vector
         axis_vec = np.array(axis_coord) - np.array(pivot_coord)
         axis_norm = np.linalg.norm(axis_vec)
@@ -51,14 +56,24 @@ def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
         return final_pos
 
 class PatchAligner:
+
     """
-    Takes a list of EQUIVALENT PdbRecord objects from a patch molecule (pfp) and base molecule (protein) as anchors
+    Takes a list of equivalent PdbRecord objects from a patch molecule (pfp) and base molecule (protein) as anchors
     Generates the rotational and transformational matrices required to align the anchors
     Apply those operations to all atoms of patch molecule
     Update the coordinates of the patch molecules PdbRecord Objects
     """
 
     def __init__(self, pfp_atoms: List[PdbRecord], pfp_anchors: List[PdbRecord], target_anchors: List[PdbRecord]):
+
+        """
+        Constructs the PatchAligner.
+
+        :param pfp_atoms: (list) All PdbRecord objects comprising the patch molecule.
+        :param pfp_anchors: (list) PdbRecord objects of the patch atoms to be aligned.
+        :param target_anchors: (list) PdbRecord objects of the target protein atoms.
+        """
+
         self.patch_atoms = pfp_atoms  
         
         # Extract coords from provided atom objects
@@ -113,11 +128,22 @@ class MolGraph:
         Creates a shallow copy of the MolGraph. 
         """
         new_instance = copy.copy(self)
-        new_instance.nx_graph = self.nx_graph.copy()
+        if self.nx_graph is not None:
+            new_instance.nx_graph = self.nx_graph.copy()
         return new_instance
 
     def _build_matrix(self):
-        """Internal method: executes distance checks and builds the connectivity matrix."""
+
+        """
+        Executes distance checks and builds the connectivity matrix.
+        
+        To avoid protein-wide O(N^2) scaling and inter-residue clashes, distance 
+        calculations are localized to atoms within the same residue. The peptide 
+        backbone is then stitched together using an O(1) dictionary lookup map.
+
+        :return: None. Updates the internal self.matrix and self.nx_graph variables.
+        """
+
         Natoms = len(self.mol.records)
         conn_mat = np.zeros((Natoms, Natoms))
 
@@ -127,6 +153,10 @@ class MolGraph:
 
         def is_hydrogen(idx):
             return self.mol.records[idx].name.strip().startswith('H')
+        
+        # Creates an O(1) lookup dictionary for the exact backbone Carbonyl (C) and Amide (N) atoms.
+        # This allows the peptide chain to be manually linked later without global distance sweeps.
+        backbone_map = {}
 
         spinner = ['|', '/', '-', '\\']
         for i in range(Natoms):
@@ -137,21 +167,51 @@ class MolGraph:
                 sys.stdout.flush()
             # ---------------------------------
 
+            
+            # --- MAP THE PROTEIN BACKBONE ---
+            rec_i = self.mol.records[i]
+
+            atom_name = rec_i.name.strip() 
+            if atom_name in ['C', 'N']:            # Check if atom is a connecting carbonyl/amide
+                key = (rec_i.chain, rec_i.res_seq) # If it is, save it to the dictionary
+                if key not in backbone_map:
+                    backbone_map[key] = {}
+                backbone_map[key][atom_name] = i
+
             for j in range(i + 1, Natoms): # i + 1 prevents self-checking and double-counting
-                dist = get_distance(get_coords(i), get_coords(j))
-                
-                is_h = is_hydrogen(i) or is_hydrogen(j)
+                rec_j = self.mol.records[j]
 
-                if is_h and dist <= self.distXH:
-                    conn_mat[i, j] = 1
-                    conn_mat[j, i] = 1
+                if rec_i.res_seq == rec_j.res_seq and rec_i.chain == rec_j.chain:
+                    dist = get_distance(get_coords(i), get_coords(j))
+                    
+                    is_h = is_hydrogen(i) or is_hydrogen(j)
 
-                elif not is_h and dist <= self.distXX:
-                    conn_mat[i, j] = 1
-                    conn_mat[j, i] = 1  
+                    if is_h and dist <= self.distXH:
+                        conn_mat[i, j] = 1
+                        conn_mat[j, i] = 1
+
+                    elif not is_h and dist <= self.distXX:
+                        conn_mat[i, j] = 1
+                        conn_mat[j, i] = 1  
 
         sys.stdout.write('\b \n') 
         sys.stdout.flush()
+
+        # --- CONNECT THE PROTEIN BACKBONE ---
+        # Iterate through mapped residues to connect C of res n to N of res n+1
+        for (chain, res_seq), atoms in backbone_map.items():
+            next_key = (chain, res_seq + 1)
+
+            if next_key in backbone_map:
+                c_idx = atoms.get('C')
+                n_idx = backbone_map[next_key].get('N')
+
+                # If both atoms exist, generate a bond in the matrix
+                if c_idx is not None and n_idx is not None:
+                    # Double check that the atoms are close enough to actually bond
+                    if get_distance(get_coords(c_idx), get_coords(n_idx)) < 2.0:
+                        conn_mat[c_idx, n_idx] = 1
+                        conn_mat[n_idx, c_idx] = 1
 
         # Remove bifurcated H atoms
         for i in range(Natoms):
@@ -253,9 +313,10 @@ class StericChecker:
     
 
 class RotamerSweeper:
+
     """
-    Coordinates side-chain and patch rotations to find a valid protein conformation.
-    Uses a three-tiered search strategy (Golden, Wiggle, and Patch-Tweak).
+    Generates and tests possible geometries at the patched lysine in order to resolve steric clashes.
+    Sweeps through known lysine rotamers and rotates the patch around the junction where it attaches to the lysine.
     """
 
     def __init__(self, mol, mol_graph, res_seq, chain=" "):
@@ -274,7 +335,19 @@ class RotamerSweeper:
         self.obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
 
     def run_sweep(self, steric_checker):
-        """Executes the three-tiered conformational search strategy."""
+        
+        """
+        Executes a three-tiered conformational search to resolve steric clashes 
+        introduced by the patch alignment. 
+
+        Tier 1 (Canonical): Tests 6 canonical staggered rotameric states for the target lysine.
+        Tier 2 (Wiggle): Performs a 30-degree systematic sweep of the chi4 dihedral.
+        Tier 3 (Patch Twist): Executes cumulative 15-degree twists of the patch molecule around the junction bond.
+
+        :param steric_checker: (StericChecker) The initialized checker object to evaluate spatial overlaps.
+        :return: (bool) True if a clash-free conformation is found, False if all tiers fail.
+        """
+
         GOLDEN_LYSINE_ROTAMERS = [
             [-60, 180, 180, 180], [180, 180, 180, 180], [60, 180, 180, 180],
             [-60, -60, 180, 180], [-60, 180, 60, 180], [180, 60, 180, 180]    
