@@ -90,8 +90,8 @@ class Stitcher:
 
         # Translate a PDB graph index into an ITP number
         def to_itp(pdb_idx):
-            record = stitched_mol.records[pdb_idx]
-            return next(a.number for a in stitched_mol.atoms if a.res_n == record.res_seq and a.atom.strip() == record.name.strip())
+            pdb_to_itp_map = {id(r): a.number for r, a in zip(stitched_mol.records, stitched_mol.atoms)}
+            return pdb_to_itp_map[id(stitched_mol.records[pdb_idx])]
 
         # Translate the bridge atom indices
         nz_itp = to_itp(nz_pdb_idx)
@@ -290,29 +290,51 @@ class Stitcher:
                 base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
 
 
-        # --- LOCAL DEFICIT CALCULATION ---
-        # Sum only the patched residue. This prevents protein-wide charge variance due to floating point noise. 
+        # Identify which sink atoms are present in this specific residue
+        possible_sinks = ['HD1' , 'HD2', 'HG1', 'HG2', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7']
+        active_sinks = [a for a in stitched_mol.atoms 
+                        if a.res_n == self.res_id and a.atom.strip() in possible_sinks]
+
+        # Calculate the deficit
         current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
-        
-        # Determine the ideal integer charge and calculate the exact fractional lost/gained
         target_sum = round(current_sum)
         delta_q = target_sum - current_sum
 
+        # Distribute only if we have sinks to take the charge
+        if active_sinks and abs(delta_q) > 1e-6:
+            q_per_atom = delta_q / len(active_sinks) # Divide by actual count
+            for atom in active_sinks:
+                old_q = float(atom.charge)
+                atom.charge = old_q + q_per_atom
+                atom.comment = f"; balanced (was {old_q:.4f})"
 
-        # --- SINK DISTRIBUTION ---
-        # Evenly spread the fractional delta_q across non-critical aliphatic hydrogens.
-        # This restores the integer charge without changing any heavy atom electrostatics.
-        sinks = ['HD1' , 'HD2', 'HG1', 'HG2', 'H2', 'H3', 'H4', 'H5', 'H6']
-        q_per_atom = delta_q / len(sinks)
-
-        for i in stitched_mol.atoms:
-            if i.res_n == self.res_id and i.atom.strip() in sinks:
-                current_charge = float(i.charge)
-                i.charge = current_charge + q_per_atom
-                i.comment = f"; old charge: {current_charge:.4f}, delta q = {q_per_atom:.4f}"
-
-        # Final verification print (calculates the local residue to ensure perfect integer)
         total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
-        print(f"Total Stitched Charge: {total_stitched_charge:.6f}")
-
+        print(f"Total Stitched Charge for Res {self.res_id}: {total_stitched_charge:.6f}")
         return stitched_mol
+
+        # # --- LOCAL DEFICIT CALCULATION ---
+        # # Sum only the patched residue. This prevents protein-wide charge variance due to floating point noise. 
+        # current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
+        
+        # # Determine the ideal integer charge and calculate the exact fractional lost/gained
+        # target_sum = round(current_sum)
+        # delta_q = target_sum - current_sum
+
+
+        # # --- SINK DISTRIBUTION ---
+        # # Evenly spread the fractional delta_q across non-critical aliphatic hydrogens.
+        # # This restores the integer charge without changing any heavy atom electrostatics.
+        # sinks = ['HD1' , 'HD2', 'HG1', 'HG2', 'H2', 'H3', 'H4', 'H5', 'H6']
+        # q_per_atom = delta_q / len(sinks)
+
+        # for i in stitched_mol.atoms:
+        #     if i.res_n == self.res_id and i.atom.strip() in sinks:
+        #         current_charge = float(i.charge)
+        #         i.charge = current_charge + q_per_atom
+        #         i.comment = f"; old charge: {current_charge:.4f}, delta q = {q_per_atom:.4f}"
+
+        # # Final verification print (calculates the local residue to ensure perfect integer)
+        # total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
+        # print(f"Total Stitched Charge: {total_stitched_charge:.6f}")
+
+        # return stitched_mol

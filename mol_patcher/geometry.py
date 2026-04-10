@@ -251,7 +251,12 @@ class StericChecker:
 
     def __init__(self, mol_graph, moving_atoms, static_atoms, tolerance=0.75):
         self.mol_graph = mol_graph
-        self.moving_atoms = moving_atoms
+        
+        # Filter out atoms that do not move during sidechain sweeps.
+        # This prevents permanent unresolvable native clashes from paralyzing the script.
+        rigid_base_atoms = {'N', 'HN', 'H', 'CA', 'HA', 'C', 'O', 'CB', 'HB', 'HB1', 'HB2', 'HB3'}
+        self.moving_atoms = [a for a in moving_atoms if a.name.strip() not in rigid_base_atoms]
+        
         self.static_atoms = static_atoms
         self.tolerance = tolerance
 
@@ -282,34 +287,40 @@ class StericChecker:
                 if s_idx in close_neighbors:
                     self.excluded_pairs.add((m_atom.serial, s_atom.serial))
 
-    def check_clashes(self):
-        for m_atom in self.moving_atoms:
-            
+    def check_clashes(self, limit_to_atoms=None):
+        """
+        Evaluates distances between moving and static atoms.
+        :param limit_to_atoms: (list, optional) If provided, only check clashes originating from these PdbRecord objects.
+        """
+        # If no list provided, check all known moving atoms defined during init
+        check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
+
+        for m_atom in check_list:
+            if m_atom.name.strip() in {'N', 'H', 'CA', 'HA', 'C', 'O', 'CB'}:
+                continue
+
             m_element = m_atom.name.strip()[0]
             m_vdw = self.vdw_radii.get(m_element, 1.50)
 
             for s_atom in self.static_atoms:
-                
-                # Check exclusion list FIRST (O(1) lookup)
                 if (m_atom.serial, s_atom.serial) in self.excluded_pairs:
+                    continue
+                if s_atom.name.strip().startswith('H'):
                     continue
 
                 s_element = s_atom.name.strip()[0]
                 s_vdw = self.vdw_radii.get(s_element, 1.50)
 
-                # Calculate the 3D distance
                 actual_dist = get_distance(
                     (m_atom.x, m_atom.y, m_atom.z), 
                     (s_atom.x, s_atom.y, s_atom.z)
                 )
 
-                # Check for steric clash
                 threshold = (m_vdw + s_vdw) * self.tolerance
                 if actual_dist < threshold:
-                    print(f"CLASH: {m_atom.name} ({m_atom.res_seq}) hit {s_atom.name} ({s_atom.res_seq}) | Dist: {actual_dist:.2f}")
-                    return True 
+                    return f"CLASH: {m_atom.name:<4} hit {s_atom.name:<4} ({s_atom.res_seq:<3}) | Dist: {actual_dist:.2f} Å"
                     
-        return False
+        return None # No clash
     
 
 class RotamerSweeper:
@@ -348,41 +359,67 @@ class RotamerSweeper:
         :return: (bool) True if a clash-free conformation is found, False if all tiers fail.
         """
 
-        GOLDEN_LYSINE_ROTAMERS = [
+        CANONICAL_LYSINE_ROTAMERS = [
             [-60, 180, 180, 180], [180, 180, 180, 180], [60, 180, 180, 180],
             [-60, -60, 180, 180], [-60, 180, 60, 180], [180, 60, 180, 180]    
         ]
         
         spinner = ['|', '/', '-', '\\']
 
-        # Tier 1: Canonical Staggered Rotamers 
+        # --- Tier 1: Canonical Staggered Rotamers ---
+        # Pivot is CA-CB. Everything from CB onwards moves.
         print("Tier 1: Trying canonical staggered rotamers...")
-        for i, pose in enumerate(GOLDEN_LYSINE_ROTAMERS):
-            sys.stdout.write(f'\rTier 1 Progress... {spinner[i % 4]}')
-            sys.stdout.flush()
-            
-            self.apply_pose(pose)
-            if not steric_checker.check_clashes(): 
-                sys.stdout.write('\b Success!\n')
-                return True
-        sys.stdout.write('\b Done.\n')
+        t1_names = self.chi_definitions[0] # N-CA-CB-CG
+        t1_pivot = self.obj_to_idx[id(self.get_atom_by_name(t1_names[1]))] # CA
+        t1_axis = self.obj_to_idx[id(self.get_atom_by_name(t1_names[2]))]  # CB
+        t1_moving = [self.mol.records[idx] for idx in self.get_downstream_atoms(t1_pivot, t1_axis)]
         
-        # Tier 2: Chi4 Systematic Wiggle 
-        print("Tier 2: Golden failed. Attempting systematic chi4 sweep...")
-        base_pose = [-60, 180, 180] 
-        angles_t2 = list(range(0, 360, 30))
-        
-        for i, angle in enumerate(angles_t2):
-            sys.stdout.write(f'\rTier 2 Progress... {spinner[i % 4]}')
-            sys.stdout.flush()
+        for i, pose in enumerate(CANONICAL_LYSINE_ROTAMERS):
+            char = spinner[i % 4]
+            print(f"\rTier 1 Progress... {char}", end='', flush=True)
             
-            self.apply_pose(base_pose + [angle])
-            if not steric_checker.check_clashes(): 
-                sys.stdout.write('\b Success!\n')
+            self.apply_pose(pose) # Apply first
+            clash_info = steric_checker.check_clashes(limit_to_atoms=t1_moving) # Then check
+            
+            if not clash_info:
+                print(f"\rTier 1 Progress... Done. Success!{' ' * 50}")
                 return True
-        sys.stdout.write('\b Done.\n')
+            else:
+                print(f"\rTier 1 Progress... {char} | {clash_info}{' ' * 10}", end='', flush=True)
 
-        # Tier 3: NZ-C7 Patch Tweak
+        print(f"\rTier 1 Progress... Done.{' ' * 60}")
+        
+        # --- Tier 2: Chi4 Systematic Wiggle ---
+        # Pivot is CG-CD. Only CD onwards moves.
+        print("Tier 2: Canonical rotations failed. Attempting systematic chi4 sweep...")
+        t2_names = self.chi_definitions[3] # CG-CD-CE-NZ
+        t2_pivot = self.obj_to_idx[id(self.get_atom_by_name(t2_names[0]))] # CG
+        t2_axis = self.obj_to_idx[id(self.get_atom_by_name(t2_names[1]))]  # CD
+        t2_moving = [self.mol.records[idx] for idx in self.get_downstream_atoms(t2_pivot, t2_axis)]
+
+        # Get current state of the first 3 chi angles to keep them steady
+        current_pose = []
+        for j in range(3):
+            names = self.chi_definitions[j]
+            coords = [self.get_atom_by_name(n) for n in names]
+            current_pose.append(get_dihedral(*[[a.x, a.y, a.z] for a in coords]))
+
+        for i, angle in enumerate(range(0, 360, 30)):
+            char = spinner[i % 4]
+            print(f"\rTier 2 Progress... {char}", end='', flush=True)
+            
+            self.apply_pose(current_pose + [float(angle)])
+            clash_info = steric_checker.check_clashes(limit_to_atoms=t2_moving)
+            
+            if not clash_info:
+                print(f"\rTier 2 Progress... Done. Success!{' ' * 50}")
+                return True
+            else:
+                print(f"\rTier 2 Progress... {char} | {clash_info}{' ' * 10}", end='', flush=True)
+        
+        print(f"\rTier 2 Progress... Done.{' ' * 60}")
+
+        # --- Tier 3: NZ-C7 Patch Twist ---
         print("Tier 3: Lysine stuck. Rotating patch molecule (NZ-C7)...")
         return self.attempt_patch_twist(steric_checker)
 
@@ -402,35 +439,39 @@ class RotamerSweeper:
         pivot_idx = self.obj_to_idx[id(atom_records[1])]
         axis_idx = self.obj_to_idx[id(atom_records[2])]
 
-        moving_atoms = self.get_downstream_atoms(pivot_idx, axis_idx)
-        rotate_dihedral(moving_atoms, coords[1], coords[2], delta)
+        moving_indices = self.get_downstream_atoms(pivot_idx, axis_idx)
+        moving_records = [self.mol.records[i] for i in moving_indices]
+        
+        rotate_dihedral(moving_records, coords[1], coords[2], delta)
 
     def attempt_patch_twist(self, steric_checker):
-        """Rotates only the patch molecule in 15-degree steps."""
+        """Rotates only the patch molecule in 2-degree steps."""
         nz = self.get_atom_by_name('NZ')
         c7 = self.get_atom_by_name('C7') 
         
-        # Use object ID to look up internal graph index
         pivot_idx = self.obj_to_idx[id(nz)]
         axis_idx = self.obj_to_idx[id(c7)]
         
-        moving_atoms = self.get_downstream_atoms(pivot_idx, axis_idx)
+        moving_indices_t3 = self.get_downstream_atoms(pivot_idx, axis_idx)
+        moving_records_t3 = [self.mol.records[idx] for idx in moving_indices_t3]
 
         spinner = ['|', '/', '-', '\\']
-        angles_t3 = list(range(0, 360, 15))
+        angles_t3 = list(range(0, 360, 2))
         
         for i, angle in enumerate(angles_t3):
-            sys.stdout.write(f'\rTier 3 Progress... {spinner[i % 4]}')
-            sys.stdout.flush()
+            char = spinner[i % 4]
+            print(f"\rTier 3 Progress... {char}", end='', flush=True)
+
+            rotate_dihedral(moving_records_t3, (nz.x, nz.y, nz.z), (c7.x, c7.y, c7.z), 2)
+            clash_info = steric_checker.check_clashes(limit_to_atoms=moving_records_t3)
             
-            # This is cumulative: it adds 15 degrees to the CURRENT position every loop
-            rotate_dihedral(moving_atoms, (nz.x, nz.y, nz.z), (c7.x, c7.y, c7.z), 15)
-            if not steric_checker.check_clashes():
-                sys.stdout.write('\b Success!\n')
-                print(f"Success! Patch rotated {angle+15} degrees to clear clash.")
+            if not clash_info:
+                print(f"\rTier 3 Progress... Done. Success!{' ' * 50}")
                 return True
-                
-        sys.stdout.write('\b Done.\n')
+            else:
+                print(f"\rTier 3 Progress... {char} | {clash_info}{' ' * 10}", end='', flush=True)
+
+        print(f"\rTier 3 Progress... Done.{' ' * 60}")
         return False
 
     def get_atom_by_name(self, name):
@@ -460,6 +501,8 @@ class RotamerSweeper:
             print(f"WARNING: Bond {pivot_idx}-{axis_idx} not found in graph. Dist: {dist:.3f}")
             return []
 
-        # Find the component containing the axis (the "moving" part of the bond)
-        moving_indices = nx.node_connected_component(temp_nx_graph, axis_idx)
-        return [self.mol.records[i] for i in moving_indices]
+        # Find the component containing the axis atom
+        downstream_indices = list(nx.node_connected_component(temp_nx_graph, axis_idx))
+        moving_atoms = [f"{self.mol.records[i].res_name}{self.mol.records[i].res_seq}-{self.mol.records[i].name.strip()}" for i in downstream_indices]
+        
+        return downstream_indices
