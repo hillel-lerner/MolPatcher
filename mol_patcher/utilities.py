@@ -55,7 +55,7 @@ def get_optimal_box_size(records, buffer_percent=0.33, min_buffer_nm=3.0):
 
 def get_dihedral(p1, p2, p3, p4):
     """
-    Calculates the dihedral (torsion) angle in degrees between four points.
+    Calculates the dihedral angle in degrees between four points.
     The sign follows the IUPAC convention (clockwise is positive).
     
     :param p1: (list/tuple) The (x, y, z) coordinates of the first atom.
