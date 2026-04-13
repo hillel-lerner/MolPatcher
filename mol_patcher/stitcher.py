@@ -71,8 +71,85 @@ class Stitcher:
                         h_to_delete.append(neighbor_record)
         return h_to_delete
     
+    def _build_pdb_to_itp_map(self, records, atoms, target_chain=""):
+        """
+        Creates a robust dictionary mapping the Python id() of a PdbRecord
+        to its corresponding ItpAtom object. Uses dynamic sequence alignment 
+        to bypass capping groups, missing loops, and numbering offsets.
+        """
+        # Build ITP blocks
+        itp_blocks = []
+        current_itp_res = None
+        for a in atoms:
+            if a.res_n != current_itp_res:
+                itp_blocks.append({})
+                current_itp_res = a.res_n
+            itp_blocks[-1][a.atom.strip()] = a
 
-    def build_bridge_topol(self, stitched_mol, stitched_graph, nz_pdb_idx, c7_pdb_idx):
+        # Build complete and split PDB blocks
+        complete_pdb_blocks = []
+        split_pdb_blocks = []
+        current_full_res = None
+        current_filt_res = None
+        
+        for r in records:
+            f_res_id = (r.chain.strip(), r.res_seq, r.res_name.strip())
+            
+            # Complete PDB
+            if f_res_id != current_full_res:
+                complete_pdb_blocks.append({})
+                current_full_res = f_res_id
+            complete_pdb_blocks[-1][r.name.strip()] = r
+            
+            # Split PDB
+            if target_chain and r.chain.strip() != target_chain:
+                continue
+            if f_res_id != current_filt_res:
+                split_pdb_blocks.append({})
+                current_filt_res = f_res_id
+            split_pdb_blocks[-1][r.name.strip()] = r
+
+        # Auto-Detect Structure
+        # Fallback to complete PDB if chain filtering strips everything
+        if len(split_pdb_blocks) == 0:
+            final_pdb_blocks = complete_pdb_blocks
+        else:
+            diff_full = abs(len(complete_pdb_blocks) - len(itp_blocks))
+            diff_filtered = abs(len(split_pdb_blocks) - len(itp_blocks))
+            final_pdb_blocks = complete_pdb_blocks if diff_full <= diff_filtered else split_pdb_blocks
+
+        # Sequence Alignment
+        mapping = {}
+        i, j = 0, 0
+        while i < len(final_pdb_blocks) and j < len(itp_blocks):
+            p_res = list(final_pdb_blocks[i].values())[0].res_name.strip()
+            i_res = list(itp_blocks[j].values())[0].res.strip()
+            
+            # Match first 2 chars to handle naming variations (LYS/LYX, HIS/HSD)
+            if p_res[:2] == i_res[:2]:
+                for atom_name, record_obj in final_pdb_blocks[i].items():
+                    if atom_name in itp_blocks[j]:
+                        mapping[id(record_obj)] = itp_blocks[j][atom_name]
+                i += 1
+                j += 1
+            else:
+                # Mismatch --> Look ahead in ITP to skip capping groups or missing loops
+                lookahead_j = j + 1
+                found = False
+                while lookahead_j < min(j + 40, len(itp_blocks)):
+                    if list(itp_blocks[lookahead_j].values())[0].res.strip()[:2] == p_res[:2]:
+                        found = True
+                        break
+                    lookahead_j += 1
+                
+                if found:
+                    j = lookahead_j # Advance ITP to catch up
+                else:
+                    i += 1 # Advance PDB if anomaly is on the PDB side
+
+        return mapping
+
+    def build_bridge_topol(self, stitched_mol, stitched_graph, nz_pdb_idx, c7_pdb_idx, stitched_map):
         """
         Uses the connectivity matrix to identify and generate missing angle and dihedral 
         topology parameters across the newly formed junction bond.
@@ -81,6 +158,7 @@ class Stitcher:
         :param stitched_graph: (MolGraph) The connectivity graph of the combined molecule.
         :param nz_pdb_idx: (int) The Python list index of the base protein anchor (e.g., NZ).
         :param c7_pdb_idx: (int) The Python list index of the patch anchor (e.g., C7).
+        :param stitched_map: (dict) The map relating the pdb indices to the itp atom indices
         :return: (tuple) Two lists containing the angle tuples and dihedral tuples to be appended.
         """
         nz_neighbors = list(stitched_graph.nx_graph.neighbors(nz_pdb_idx))
@@ -90,8 +168,15 @@ class Stitcher:
 
         # Translate a PDB graph index into an ITP number
         def to_itp(pdb_idx):
-            pdb_to_itp_map = {id(r): a.number for r, a in zip(stitched_mol.records, stitched_mol.atoms)}
-            return pdb_to_itp_map[id(stitched_mol.records[pdb_idx])]
+            record = stitched_mol.records[pdb_idx]
+            mapped_atom = stitched_map.get(id(record))
+            
+            if mapped_atom is not None:
+                return mapped_atom.number
+            
+            for a in stitched_mol.atoms:
+                if a.res_n == record.res_seq and a.atom.strip() == record.name.strip():
+                    return a.number
 
         # Translate the bridge atom indices
         nz_itp = to_itp(nz_pdb_idx)
@@ -108,8 +193,8 @@ class Stitcher:
             for c in c7_exclusive:
                 dihedrals_to_check.append((to_itp(n), nz_itp, c7_itp, to_itp(c)))
 
-        print("Angles across junction (ITP Numbers):", angles_to_check)
-        print("Dihedrals across junction (ITP Numbers):", dihedrals_to_check)
+        # print("Angles across junction (ITP Numbers):", angles_to_check)
+        # print("Dihedrals across junction (ITP Numbers):", dihedrals_to_check)
 
         return angles_to_check, dihedrals_to_check
     
@@ -190,17 +275,27 @@ class Stitcher:
         final_records[insert_idx_records:insert_idx_records] = filter_patch_records
         
         # Calculate insertion point for the ITP list based on the target residue and atom name.
-        insert_idx_atoms = next(i for i, a in enumerate(final_atoms) if a.res_n == anchor_res_seq and a.atom.strip() == anchor_name) + 1
+        base_map = self._build_pdb_to_itp_map(self.base.records, self.base.atoms)
+        
+        anch_2_itp_obj = base_map.get(id(target_anchors[2]))
+        if anch_2_itp_obj is None:
+            for a in self.base.atoms:
+                if a.res_n == target_anchors[2].res_seq and a.atom.strip() == target_anchors[2].name.strip():
+                    anch_2_itp_obj = a
+                    break
+
+        insert_idx_atoms = final_atoms.index(anch_2_itp_obj) + 1
+        
         final_atoms[insert_idx_atoms:insert_idx_atoms] = filter_patch_atoms
 
         # Build Initial Object
-        stitched_mol = Mol(self.base.name, final_records, final_atoms, 
+        stitched_mol = Mol(self.base.name, self.base.moltype_section, final_records, final_atoms, 
                         self.base.bonds + patch_bonds, self.base.pairs + patch_pairs, 
                         self.base.angles + patch_angles, self.base.dihs + patch_dihs)
 
         # Add Junction Interactions (1-2 Bond Only)
         patch_bridge_idx = next(a for a in self.patch.atoms if a.atom.strip() == patch_bridge_name.strip()).number + self.offset
-        anch_2_itp = next(a.number for a in self.base.atoms if a.res_n == anchor_res_seq and a.atom.strip() == anchor_name)
+        anch_2_itp = anch_2_itp_obj.number
         
         stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, 1))
 
@@ -217,11 +312,20 @@ class Stitcher:
         stitched_graph = MolGraph(stitched_mol)
 
         # Find the PDB graph indices of the NZ and C7 atoms
-        nz_idx = next(i for i, r in enumerate(stitched_mol.records) if r.res_seq == anchor_res_seq and r.name.strip() == anchor_name)
-        c7_idx = next(i for i, r in enumerate(stitched_mol.records) if r.res_seq == target_reference.res_seq and r.name.strip() == patch_bridge_name.strip())
+        nz_idx = next(i for i, r in enumerate(stitched_mol.records) 
+                    if r.res_seq == target_anchors[2].res_seq 
+                    and r.name.strip() == target_anchors[2].name.strip()
+                    and r.chain.strip() == target_anchors[2].chain.strip())
+        c7_idx = next(i for i, r in enumerate(stitched_mol.records) 
+                    if r.res_seq == target_reference.res_seq 
+                    and r.name.strip() == patch_bridge_name.strip())
+
+        # Map the PdbRecord object to the ItpAtom object
+        stitched_map = self._build_pdb_to_itp_map(stitched_mol.records, stitched_mol.atoms)
 
         # Call the checker to get the missing parameters
-        angles_to_check, dihedrals_to_check = self.build_bridge_topol(stitched_mol, stitched_graph, nz_idx, c7_idx)
+        angles_to_check, dihedrals_to_check = self.build_bridge_topol(stitched_mol, stitched_graph, nz_idx, c7_idx, stitched_map)
+        print(f"Topology junction built: 1 bond, {len(angles_to_check)} angles, {len(dihedrals_to_check)} dihedrals, and {len(dihedrals_to_check)} pairs, added.")
         
         # --- AUTOMATED APPENDS ---
         # Unpack 3-item angle tuples
@@ -311,30 +415,3 @@ class Stitcher:
         total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
         print(f"Total Stitched Charge for Res {self.res_id}: {total_stitched_charge:.6f}")
         return stitched_mol
-
-        # # --- LOCAL DEFICIT CALCULATION ---
-        # # Sum only the patched residue. This prevents protein-wide charge variance due to floating point noise. 
-        # current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
-        
-        # # Determine the ideal integer charge and calculate the exact fractional lost/gained
-        # target_sum = round(current_sum)
-        # delta_q = target_sum - current_sum
-
-
-        # # --- SINK DISTRIBUTION ---
-        # # Evenly spread the fractional delta_q across non-critical aliphatic hydrogens.
-        # # This restores the integer charge without changing any heavy atom electrostatics.
-        # sinks = ['HD1' , 'HD2', 'HG1', 'HG2', 'H2', 'H3', 'H4', 'H5', 'H6']
-        # q_per_atom = delta_q / len(sinks)
-
-        # for i in stitched_mol.atoms:
-        #     if i.res_n == self.res_id and i.atom.strip() in sinks:
-        #         current_charge = float(i.charge)
-        #         i.charge = current_charge + q_per_atom
-        #         i.comment = f"; old charge: {current_charge:.4f}, delta q = {q_per_atom:.4f}"
-
-        # # Final verification print (calculates the local residue to ensure perfect integer)
-        # total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
-        # print(f"Total Stitched Charge: {total_stitched_charge:.6f}")
-
-        # return stitched_mol

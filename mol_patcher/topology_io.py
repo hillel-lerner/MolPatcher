@@ -96,9 +96,21 @@ class TopologyParser:
         atoms, bonds, pairs, angles, dihs = [], [], [], [], []
         current_section = None
 
+        moltype_lines = []
+
         with open(filepath, 'r') as f:
             for line in f:
                 stripped = line.strip()
+
+                if stripped.startswith('['):
+                    current_section = stripped.strip('[] ').lower()
+                    if current_section == 'moleculetype':
+                        moltype_lines.append(line)
+                    continue
+
+                if current_section == 'moleculetype':
+                    moltype_lines.append(line)
+                    continue
                 
                 # Ignore blank lines and comments 
                 if not stripped or stripped.startswith(';'):
@@ -136,7 +148,8 @@ class TopologyParser:
                 elif current_section == "dihedrals" and len(parts) >= 5:
                     dihs.append(ItpDih(int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4])))
 
-        return atoms, bonds, pairs, angles, dihs
+        moltype_section = "".join(moltype_lines)
+        return moltype_section, atoms, bonds, pairs, angles, dihs
 
 class TopologyBuilder:
     """
@@ -163,8 +176,13 @@ class TopologyBuilder:
 
         with open(self.filename, 'w') as f:
             # Molecule Header
-            f.write("[ moleculetype ]\n; name       nrexcl\n")
-            f.write(f"{self.mol_name:<10s} 3\n\n")
+            if self.mol.moltype_section:
+                f.write(self.mol.moltype_section)
+                if not self.mol.moltype_section.endswith('\n\n'):
+                    f.write('\n')
+            else:
+                f.write("[ moleculetype ]\n; Name            nrexcl\n")
+                f.write(f"{self.mol.name:<15} 3\n\n")
 
             # Atoms Section
             if self.mol.atoms:

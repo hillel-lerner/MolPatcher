@@ -30,13 +30,10 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
     pdb_path = pdb_file
     itp_path = itp_file
     
-    # Extract the molecule name for the ITP file (e.g., "PROE" from "PROE.itp")
-    base_mol_name = os.path.splitext(os.path.basename(itp_path))[0]
-    
     # Load Patch Data 
     loader = Patchloader()
     pfp_atoms = loader.get_pfp_pdb()
-    patch_mol = Mol("patch", pfp_atoms, [], [], [], [], [])
+    patch_mol = Mol(name="patch", records=pfp_atoms)
     loader.get_pfp_itp(patch_mol)
 
     # Load Base Protein Data
@@ -131,7 +128,7 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
     itp_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.itp")
 
     PdbBuilder(pdb_outfile, stitched_mol.records, headers).write_pdb()
-    TopologyBuilder(stitched_mol, itp_outfile, base_mol_name).write_itp()
+    TopologyBuilder(stitched_mol, itp_outfile, stitched_mol.name).write_itp()
     
     box_size, applied_buffer = utilities.get_optimal_box_size(
         stitched_mol.records, 

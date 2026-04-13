@@ -71,6 +71,7 @@ class Mol:
     Aggregates PDB records and GROMACS ITP topology lists into a single accessible object.
     """
     name: str
+    moltype_section: str = ""
     records: List[PdbRecord] = field(default_factory=list)
     atoms: List[ItpAtom] = field(default_factory=list)
     bonds: List[ItpBond] = field(default_factory=list)
@@ -86,10 +87,11 @@ class Mol:
         :return: None. Updates internal lists.
         """
         from .topology_io import TopologyParser
-        a, b, p, ang, d = TopologyParser.read_file(itp_path)
+        moltype, a, b, p, ang, d = TopologyParser.read_file(itp_path)
+        self.moltype_section = moltype
         self.atoms, self.bonds, self.pairs, self.angles, self.dihs = a, b, p, ang, d
 
-    def load_pdb(self, res_seq: int, chain: str, res_name: str, atom_name: str) -> PdbRecord:
+    def get_pdb_record(self, res_seq: int, chain: str, res_name: str, atom_name: str) -> PdbRecord:
         """
         Retrieves a specific PdbRecord from the molecule based on its identifiers.
         
@@ -100,6 +102,9 @@ class Mol:
         :return: (PdbRecord) The matching atom record.
         """
         for atom in self.records:
-            if atom.res_seq == res_seq and atom.chain == chain and atom.res_name == res_name and atom.name == atom_name:
+            if (atom.res_seq == res_seq and 
+                atom.chain.strip() == chain.strip() and 
+                atom.res_name.strip() == res_name.strip() and 
+                atom.name.strip() == atom_name.strip()):
                 return atom
         raise ValueError(f"Atom {atom_name} not found in {res_name} {res_seq}")

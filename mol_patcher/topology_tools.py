@@ -9,7 +9,7 @@ def reindex_topology(mol, remap_dict=None):
     
     :param mol: (Mol) The molecule object to be reindexed.
     :param remap_dict: (dict, optional) A dictionary mapping deleted or merged atom indices 
-                       to their new preserved index (e.g., mapping a patch nitrogen to a protein nitrogen).
+                    to their new preserved index (e.g., mapping a patch nitrogen to a protein nitrogen).
     :return: (dict) index_map containing the translation from old indices to new sequential indices.
     """
     
