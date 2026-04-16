@@ -365,7 +365,7 @@ class Stitcher:
                 atom.type = type_map[atom.atom.strip()]
         return stitched_mol
     
-    def balance_electrostatics(self, stitched_mol):
+    def balance_electrostatics(self, stitched_mol, target_charge=0):
         """
         Balances the electrostatic charge of the patched residue to ensure a perfect 
         integer net charge. It updates the heavy anchor atoms to match the patch 
@@ -401,8 +401,8 @@ class Stitcher:
 
         # Calculate the deficit
         current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
-        target_sum = round(current_sum)
-        delta_q = target_sum - current_sum
+        # target_sum = round(current_sum)
+        delta_q = target_charge - current_sum     # ONLY FOR NEUTRAL LYSINES. NEED TO CHANGE THIS IF NOT.
 
         # Distribute only if we have sinks to take the charge
         if active_sinks and abs(delta_q) > 1e-6:
