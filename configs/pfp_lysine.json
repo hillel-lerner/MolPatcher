@@ -1,0 +1,24 @@
+{
+    "system_name": "pfp_lysine",
+    "target_res_name": "LYS",
+    "new_res_name": "LYX",
+    "base_anchors": ["CE", "CD", "NZ"],
+    "base_deletions": ["HZ1", "HZ2", "HZ3"],
+    "patch_anchors": ["C10", "C11", "N"],
+    "patch_bridge": "C7",
+    "patch_files": {
+        "itp": "pfp_patch_new.itp",
+        "pdb": "pfp_patch_new.pdb"
+    },
+    "type_mapping": {
+        "NZ": "NG311",
+        "HZ1": "HGPAM1",
+        "HZ2": "HGPAM1",
+        "HZ3": "HGPAM1"
+    },
+    "charge_inheritance": {
+        "NZ": "N",
+        "CE": "C10",
+        "CD": "C11"
+    }
+}

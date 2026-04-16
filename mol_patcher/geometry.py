@@ -99,6 +99,67 @@ class PatchAligner:
             atom.x, atom.y, atom.z = final_coords[i]
             
         return self.patch_atoms
+    
+
+    def align_single_bond(self, atoms:List[PdbRecord], at1, at2, at3, at4, target_bond_length):
+        """
+        Translates and rotates the patch molecule using a single bond vector alignment.
+        
+        :param atoms: (list) PdbRecord object(s) comprising the atoms involved in the new bond.
+        :param at1: (tuple/list) PdbRecord object for atom on the first molecule that will be replaced.
+        :param at2: (tuple/list) PdbRecord object for atom on the first molecule that will be be bonded to at3.
+        :param at3: (tuple/list) PdbRecord object for atom on the second molecule that will be be bonded to at2.
+        :param at4: (tuple/list) PdbRecord object for atom on the second molecule that will be replaced.
+        :param target_bond_length: (float) The length (in angstroms) of the new bond being formed.
+        """
+        # at1 through at4 are the atoms involved in bonding: 
+        # initial bonds are at1-at2 and at3-at4 we want to create a bond between at2 and at3 s.t. the coords of at1=at3 and coords of at2=at4
+                
+        self.at1_coords = np.array([at1.x, at1.y, at1.z])
+        self.at2_coords = np.array([at2.x, at2.y, at2.z]) 
+        self.at3_coords = np.array([at3.x, at3.y, at3.z]) 
+        self.at4_coords = np.array([at4.x, at4.y, at4.z])
+
+        bond1_vec = self.at2_coords - self.at1_coords
+        bond2_vec = self.at4_coords - self.at3_coords
+
+        target_vec = bond1_vec
+        target_magnitude = np.linalg.norm(target_vec)
+        target_vec_normalized = target_vec / target_magnitude
+
+        target_at3_pos = self.at1_coords + (target_vec_normalized * target_bond_length)
+
+        bond_rotation_obj, rmsd = Rotation.align_vectors([-target_vec], [bond2_vec])
+
+        for atom in atoms:
+            coords = np.array([atom.x, atom.y, atom.z])
+            centered_coords = coords - self.at3_coords
+            rotated_coords = bond_rotation_obj.apply(centered_coords)
+            translated_coords = rotated_coords + target_at3_pos
+            atom.x, atom.y, atom.z = translated_coords
+        return atoms
+    
+    def set_junction_dihedral(self, atoms: List[PdbRecord], p1, p2, p3, p4, target_dih):
+        """
+        Spins the patch molecule around the new junction bond to match a specific dihedral angle.
+
+        :param p1: (tuple/list) Base parent atom (e.g., Serine CA)
+        :param p2: (tuple/list) Base anchor atom (e.g., Serine N) - Axis of rotation
+        :param p3: (tuple/list) Patch anchor atom (e.g., Glycan C1) - Pivot for rotation
+        :param p4: (tuple/list) Patch child atom (e.g., Glycan Ring O)
+        :return: (numpy.ndarray) The final transformed coordinate array.
+        """
+        
+        self.p1_coords = np.array([p1.x, p1.y, p1.z])
+        self.p2_coords = np.array([p2.x, p2.y, p2.z]) 
+        self.p3_coords = np.array([p3.x, p3.y, p3.z]) 
+        self.p4_coords = np.array([p4.x, p4.y, p4.z])
+
+        current_dih = get_dihedral(self.p1_coords, self.p2_coords, self.p3_coords, self.p4_coords)
+        delta = target_dih - current_dih
+        rotate_dihedral(atoms, self.p3_coords, self.p2_coords, delta)
+        
+        return atoms
 
 class MolGraph:
 
