@@ -8,7 +8,7 @@ from mol_patcher.topology_io import TopologyParser, TopologyBuilder
 from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker, RotamerSweeper
 from mol_patcher import utilities
 
-def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
+def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=False):
     
     """
     Orchestrates the entire MolPatcher pipeline: loading data, aligning the patch,
@@ -122,7 +122,6 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, copy_ff=False):
         print(f"Error: Could not find a clash-free conformation for residue {res_id}. Exiting.")
         return
 
-
     # Save outputs
     pdb_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.pdb")
     itp_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.itp")
@@ -164,6 +163,7 @@ def main():
     parser.add_argument("-itp", "--itp", required=True, help="Input ITP file")
     parser.add_argument("-res", "--res", type=int, required=True, help="Target residue ID")
     parser.add_argument("-c", "-chain", "--chain", default=" ", help="Chain ID")
+    parser.add_argument("-itp_chains", nargs="+", default=[], help="Chains included in the ITP (e.g., -itp_chains B C)")
     parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
     parser.add_argument("-ff", "--ff", action="store_true", help="Copy master forcefield")
     
@@ -172,8 +172,10 @@ def main():
     # Resolve absolute paths based on where the user is currently standing
     pdb_abs = os.path.abspath(args.pdb)
     itp_abs = os.path.abspath(args.itp)
+
+    itp_chains_list = args.itp_chains if args.itp_chains else [args.chain.strip()]
     
-    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir, copy_ff=args.ff)
+    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir, itp_chains_list, copy_ff=args.ff)
 
 if __name__ == "__main__":
     main()

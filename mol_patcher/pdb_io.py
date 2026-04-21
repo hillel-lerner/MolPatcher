@@ -84,8 +84,6 @@ class PdbParser:
             atom.ins_code = " "
         return records
 
-
-
     def read_file(self, file):
         """
         Reads a PDB file and extracts headers and ATOM/HETATM records.
@@ -151,10 +149,10 @@ class PdbBuilder:
         :param atom_list: (list) PdbRecord objects to be written.
         :param headers: (list, optional) Original PDB header strings to preserve.
         """
+        
         self.new_pdb_name = new_pdb_name
         self.atom_list = atom_list
         self.headers = headers if headers else []
-
 
     def format_lines(self):
         formatted_lines = []
@@ -205,9 +203,7 @@ class PdbBuilder:
             )
             formatted_lines.append(line)
 
-        
         formatted_lines.append("TER\n")
-            
         formatted_lines.append("END\n")
 
         return formatted_lines

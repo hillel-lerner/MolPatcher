@@ -163,7 +163,7 @@ class PatchAligner:
 
 class MolGraph:
 
-    def __init__(self, mol: Mol, distXX=1.65, distXH=1.15):
+    def __init__(self, mol: Mol, distXX=1.65, distXH=1.15, itp_to_pdb_map=None):
 
         """ 
         Creates a connectivity matrix of the molecule. A connectivity matrix holds the information of which atoms are bonded and to what.
@@ -178,11 +178,15 @@ class MolGraph:
         
         # State variables
         self.matrix = None
-        self.nx_graph = None
+        self.nx_graph = nx.Graph()
         self.Nmols = None
-        
-        # Automatically build the graph upon initialization
-        self._build_matrix()
+
+        for i, record in enumerate(mol.records):
+            self.nx_graph.add_node(i)
+        if itp_to_pdb_map and mol.bonds:
+            self._build_edges_from_topology(itp_to_pdb_map)
+        else:
+            self._build_matrix()  # Automatically build the graph upon initialization
 
     def copy(self):
         """
@@ -193,6 +197,38 @@ class MolGraph:
             new_instance.nx_graph = self.nx_graph.copy()
         return new_instance
 
+    def _build_edges_from_topology(self, itp_to_pdb_map):
+        """
+        Builds the connectivity matrix and graph directly from the ITP bonds list,
+        bypassing spatial distance calculations entirely.
+        """
+        Natoms = len(self.mol.records)
+        conn_mat = np.zeros((Natoms, Natoms))
+
+        # Create dictionary mapping the PdbRecord's memory ID to its list index
+        record_to_idx = {id(r): i for i, r in enumerate(self.mol.records)}
+
+        for bond in self.mol.bonds:
+            # Look up PdbRecord objects using ITP topology numbers
+            rec1 = itp_to_pdb_map.get(bond.a1)
+            rec2 = itp_to_pdb_map.get(bond.a2)
+
+            # If both atoms exist in the PDB (weren't deleted during patching)
+            if rec1 and rec2:
+                # Find exact indices in the mol.records list
+                idx1 = record_to_idx.get(id(rec1))
+                idx2 = record_to_idx.get(id(rec2))
+
+                if idx1 is not None and idx2 is not None:
+                    # Add the connection to both the NetworkX graph and numpy matrix
+                    self.nx_graph.add_edge(idx1, idx2)
+                    conn_mat[idx1, idx2] = 1
+                    conn_mat[idx2, idx1] = 1
+
+        # Store the final state variables
+        self.matrix = conn_mat
+        self.Nmols = nx.number_connected_components(self.nx_graph)
+    
     def _build_matrix(self):
 
         """
@@ -215,8 +251,8 @@ class MolGraph:
         def is_hydrogen(idx):
             return self.mol.records[idx].name.strip().startswith('H')
         
-        # Creates an O(1) lookup dictionary for the exact backbone Carbonyl (C) and Amide (N) atoms.
-        # This allows the peptide chain to be manually linked later without global distance sweeps.
+        # Creates O(1) lookup dictionary for the exact backbone Carbonyl (C) and Amide (N) atoms.
+        # Allows the peptide chain to be manually linked later without global distance sweeps.
         backbone_map = {}
 
         spinner = ['|', '/', '-', '\\']
