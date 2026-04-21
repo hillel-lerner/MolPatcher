@@ -36,6 +36,7 @@ class ItpAtom:
     cgnr: int
     charge: float
     mass: float
+    comment: str = ""
 
 @dataclass
 class ItpBond:

@@ -72,11 +72,12 @@ class TopologyParser:
                         res_counter += 1
                         last_seen_raw = raw_res
 
-                    parts[2] = str(res_counter)
-                    
-                    formatted_line = f"{parts[0]:>6} {parts[1]:>10} {parts[2]:>6} {parts[3]:>6} {parts[4]:>6} {parts[5]:>6} {parts[6]:>12} {parts[7]:>12}"
-                    if len(parts) > 8:
-                        formatted_line += "   " + " ".join(parts[8:])
+                    # Reconstruct the line
+                    comment_append = ""
+                    if str(res_counter) != raw_res:
+                        comment_append = f" ; old_res: {raw_res}"
+                        
+                    formatted_line = f"{parts[0]:>6} {parts[1]:>10} {str(res_counter):>6} {parts[3]:>6} {parts[4]:>6} {parts[5]:>6} {parts[6]:>12} {parts[7]:>12}{comment_append}"
                     outfile.write(formatted_line + "\n")
                 else:
                     outfile.write(line)
@@ -125,6 +126,12 @@ class TopologyParser:
                 
                 # Parse data 
                 if current_section == "atoms" and len(parts) >= 8 and parts[0].isdigit():
+                    comment = ""
+                    if ';' in line:
+                        raw_comment = line[line.find(';'):].strip()
+                        if 'old_res:' in raw_comment:
+                            comment = "; old_res: " + raw_comment.split('old_res:')[-1].strip()
+
                     atoms.append(ItpAtom(
                         int(parts[0]), 
                         parts[1], 
@@ -133,7 +140,8 @@ class TopologyParser:
                         parts[4], 
                         int(parts[5]),
                         float(parts[6]), 
-                        float(parts[7])
+                        float(parts[7]),
+                        comment
                     ))
 
                 elif current_section == "bonds" and len(parts) >= 3:

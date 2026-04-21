@@ -38,10 +38,11 @@ class Stitcher:
     Performs the topological and geometric surgery required to attach a patch molecule 
     to a base protein molecule.
     """
-    def __init__(self, base_mol, patch_mol, target_res_id):
+    def __init__(self, base_mol, patch_mol, target_res_id, itp_chains=None):
         self.base = base_mol
         self.patch = patch_mol
         self.res_id = target_res_id
+        self.itp_chains = itp_chains or []
 
         # State tracking
         self.offset = 100000
@@ -71,11 +72,11 @@ class Stitcher:
                         h_to_delete.append(neighbor_record)
         return h_to_delete
     
-    def _build_pdb_to_itp_map(self, records, atoms, target_chain=""):
+    def _build_pdb_to_itp_map(self, records, atoms, itp_chains=None):
         """
-        Creates a robust dictionary mapping the Python id() of a PdbRecord
-        to its corresponding ItpAtom object. Uses dynamic sequence alignment 
-        to bypass capping groups, missing loops, and numbering offsets.
+        Creates a dictionary mapping the Python id() of a PdbRecord
+        to its corresponding ItpAtom object. Filters PDB records to 
+        match the scope of the provided ITP chains.
         """
         # Build ITP blocks
         itp_blocks = []
@@ -86,66 +87,71 @@ class Stitcher:
                 current_itp_res = a.res_n
             itp_blocks[-1][a.atom.strip()] = a
 
-        # Build complete and split PDB blocks
-        complete_pdb_blocks = []
-        split_pdb_blocks = []
-        current_full_res = None
-        current_filt_res = None
+        # Build Scoped PDB blocks (based on chains)
+        scoped_pdb_blocks = []
+        current_pdb_res = None
         
         for r in records:
-            f_res_id = (r.chain.strip(), r.res_seq, r.res_name.strip())
-            
-            # Complete PDB
-            if f_res_id != current_full_res:
-                complete_pdb_blocks.append({})
-                current_full_res = f_res_id
-            complete_pdb_blocks[-1][r.name.strip()] = r
-            
-            # Split PDB
-            if target_chain and r.chain.strip() != target_chain:
+            # Skip records that aren't part of the ITP file's scope
+            if itp_chains and r.chain.strip() not in itp_chains:
                 continue
-            if f_res_id != current_filt_res:
-                split_pdb_blocks.append({})
-                current_filt_res = f_res_id
-            split_pdb_blocks[-1][r.name.strip()] = r
+                
+            res_id = (r.chain.strip(), r.res_seq, r.res_name.strip())
+            if res_id != current_pdb_res:
+                scoped_pdb_blocks.append({})
+                current_pdb_res = res_id
+            scoped_pdb_blocks[-1][r.name.strip()] = r
 
-        # Auto-Detect Structure
-        # Fallback to complete PDB if chain filtering strips everything
-        if len(split_pdb_blocks) == 0:
-            final_pdb_blocks = complete_pdb_blocks
-        else:
-            diff_full = abs(len(complete_pdb_blocks) - len(itp_blocks))
-            diff_filtered = abs(len(split_pdb_blocks) - len(itp_blocks))
-            final_pdb_blocks = complete_pdb_blocks if diff_full <= diff_filtered else split_pdb_blocks
-
-        # Sequence Alignment
+        # Dynamic sequence alignment
         mapping = {}
         i, j = 0, 0
-        while i < len(final_pdb_blocks) and j < len(itp_blocks):
-            p_res = list(final_pdb_blocks[i].values())[0].res_name.strip()
+        
+        while i < len(scoped_pdb_blocks) and j < len(itp_blocks):
+            p_res = list(scoped_pdb_blocks[i].values())[0].res_name.strip()
             i_res = list(itp_blocks[j].values())[0].res.strip()
             
-            # Match first 2 chars to handle naming variations (LYS/LYX, HIS/HSD)
+            # Match first 2 chars (LYS/LYX, HIS/HSD)
             if p_res[:2] == i_res[:2]:
-                for atom_name, record_obj in final_pdb_blocks[i].items():
+                for atom_name, record_obj in scoped_pdb_blocks[i].items():
                     if atom_name in itp_blocks[j]:
                         mapping[id(record_obj)] = itp_blocks[j][atom_name]
                 i += 1
                 j += 1
             else:
-                # Mismatch --> Look ahead in ITP to skip capping groups or missing loops
-                lookahead_j = j + 1
-                found = False
-                while lookahead_j < min(j + 40, len(itp_blocks)):
-                    if list(itp_blocks[lookahead_j].values())[0].res.strip()[:2] == p_res[:2]:
-                        found = True
-                        break
-                    lookahead_j += 1
+                # Mismatch if the sequences diverge.
+                # To prevent false matches, scan ahead in BOTH files to find a unique fingerprint: 3 consecutive residues that perfectly match.
+                found_sync = False
                 
-                if found:
-                    j = lookahead_j # Advance ITP to catch up
-                else:
-                    i += 1 # Advance PDB if anomaly is on the PDB side
+                # Check up to 40 residues ahead in both files
+                for offset_i in range(40):
+                    if i + offset_i >= len(scoped_pdb_blocks): break
+                    for offset_j in range(40):
+                        if j + offset_j >= len(itp_blocks): break
+                        
+                        # Validate a 3-residue sequence 
+                        sync_length = min(3, len(scoped_pdb_blocks) - (i + offset_i), len(itp_blocks) - (j + offset_j))
+                        is_match = True
+                        
+                        for k in range(sync_length):
+                            pk = list(scoped_pdb_blocks[i + offset_i + k].values())[0].res_name.strip()[:2]
+                            ik = list(itp_blocks[j + offset_j + k].values())[0].res.strip()[:2]
+                            if pk != ik:
+                                is_match = False
+                                break
+                                
+                        # If the fingerprint matches, lock the alignment and break
+                        if is_match and sync_length > 0:
+                            i = i + offset_i
+                            j = j + offset_j
+                            found_sync = True
+                            break
+                            
+                    if found_sync:
+                        break
+                        
+                # If no sequence fingerprint can be found, safely advance PDB to prevent infinite loops
+                if not found_sync:
+                    i += 1
 
         return mapping
 
@@ -244,23 +250,26 @@ class Stitcher:
         filter_patch_records, filter_patch_atoms = [], []
         dynamic_seg_id = target_anchors[0].seg_id
 
-        # Append patch atoms with the LYX designation
+        # Append patch atoms with the LYX designation and record old residue number
         for i, record in enumerate(aligned_patch_atoms):
             if record not in self.patch_deletions and record not in patch_overlap_anchors:
                 filter_patch_records.append(replace(record, res_name="LYX", 
                                         chain=target_reference.chain, res_seq=target_reference.res_seq, 
                                         seg_id=dynamic_seg_id))
-                filter_patch_atoms.append(replace(self.patch.atoms[i], res_n=target_reference.res_seq, 
-                                        res="LYX"))
+                original_atom = self.patch.atoms[i]
+                old_res_n = original_atom.res_n
+                new_atom = replace(original_atom, res_n=target_reference.res_seq, res="LYX")
+
+                if old_res_n != target_reference.res_seq:
+                    existing_comment = new_atom.comment.strip() if hasattr(new_atom, 'comment') and new_atom.comment else ""
+                    new_atom.comment = f"{existing_comment} ; old_res: {old_res_n}".strip()
+                    
+                filter_patch_atoms.append(new_atom)
 
         # Rename the preserved base protein atoms at the target site to LYX
         for r in final_records:
             if r.res_seq == target_reference.res_seq and r.chain == target_reference.chain and r.res_name.strip() == "LYS":
                 r.res_name = "LYX"
-
-        for a in final_atoms:
-            if a.res_n == target_reference.res_seq and a.res.strip() == "LYS":
-                a.res = "LYX"
 
         for atom in filter_patch_atoms:
             atom.number += self.offset
@@ -275,7 +284,39 @@ class Stitcher:
         final_records[insert_idx_records:insert_idx_records] = filter_patch_records
         
         # Calculate insertion point for the ITP list based on the target residue and atom name.
-        base_map = self._build_pdb_to_itp_map(self.base.records, self.base.atoms)
+        base_map = self._build_pdb_to_itp_map(self.base.records, self.base.atoms, itp_chains=self.itp_chains)
+
+        old_itp_to_pdb = {}
+        for record in self.base.records:
+            itp_obj = base_map.get(id(record))
+            if itp_obj is not None:
+                old_itp_to_pdb[itp_obj.number] = record
+        
+        # Sync base ITP residue numbers to the PDB and track old numbers
+        for a in final_atoms:
+            rec = old_itp_to_pdb.get(a.number)
+            if rec:
+                new_res_n = rec.res_seq
+                
+                # Extract original number from clean_itp_file if it exists
+                true_old_res = str(a.res_n)
+                if 'old_res:' in getattr(a, 'comment', ''):
+                    true_old_res = a.comment.split('old_res:')[-1].strip()
+                    
+                # Sync the actual integer topology number to the PDB
+                if a.res_n != new_res_n:
+                    a.res_n = new_res_n
+                    
+                # If the original number perfectly matches the final PDB number, wipe the comment
+                if str(new_res_n) == true_old_res:
+                    a.comment = ""
+                else:
+                    # Only print if it changed
+                    a.comment = f"; old_res: {true_old_res}"
+            
+                if rec.res_seq == target_reference.res_seq and rec.chain.strip() == target_reference.chain.strip():
+                    if a.res.strip() == "LYS":
+                        a.res = "LYX"
         
         anch_2_itp_obj = base_map.get(id(target_anchors[2]))
         if anch_2_itp_obj is None:
@@ -290,7 +331,7 @@ class Stitcher:
 
         # Build Initial Object
         stitched_mol = Mol(self.base.name, self.base.moltype_section, final_records, final_atoms, 
-                        self.base.bonds + patch_bonds, self.base.pairs + patch_pairs, 
+                        patch_bonds, self.base.pairs + patch_pairs, # <-- removed self.base.bonds
                         self.base.angles + patch_angles, self.base.dihs + patch_dihs)
 
         # Add Junction Interactions (1-2 Bond Only)
@@ -321,9 +362,34 @@ class Stitcher:
                     and r.name.strip() == patch_bridge_name.strip())
 
         # Map the PdbRecord object to the ItpAtom object
-        stitched_map = self._build_pdb_to_itp_map(stitched_mol.records, stitched_mol.atoms)
+        stitched_map = self._build_pdb_to_itp_map(stitched_mol.records, stitched_mol.atoms, itp_chains=self.itp_chains)
+        stitched_itp_to_pdb = {}
+        for r in stitched_mol.records:
+            itp_obj = stitched_map.get(id(r))
+            if itp_obj:
+                stitched_itp_to_pdb[itp_obj.number] = r
 
-        # Call the checker to get the missing parameters
+        # --- Translate and preserve original bonds ---
+        for old_bond in self.base.bonds:
+            # Look up physical PdbRecords from the old indices
+            record_1 = old_itp_to_pdb.get(old_bond.a1)
+            record_2 = old_itp_to_pdb.get(old_bond.a2)
+
+            # Skip if the map missed them, or if explicitly deleted (like HZ1)
+            if not record_1 or not record_2:
+                continue
+            if record_1 in self.base_deletions or record_2 in self.base_deletions:
+                continue
+
+            # Find new topology numbers using the stitched_map
+            new_itp_1 = stitched_map.get(id(record_1))
+            new_itp_2 = stitched_map.get(id(record_2))
+
+            # If both survived, append the bond with the new numbers
+            if new_itp_1 and new_itp_2:
+                stitched_mol.bonds.append(ItpBond(new_itp_1.number, new_itp_2.number, old_bond.type))
+
+        # Call checker to get the missing parameters
         angles_to_check, dihedrals_to_check = self.build_bridge_topol(stitched_mol, stitched_graph, nz_idx, c7_idx, stitched_map)
         print(f"Topology junction built: 1 bond, {len(angles_to_check)} angles, {len(dihedrals_to_check)} dihedrals, and {len(dihedrals_to_check)} pairs, added.")
         
@@ -350,22 +416,23 @@ class Stitcher:
             "HZ3": "HGPAM1"
         }  
         
-        stitched_mol = self.update_atom_types(stitched_mol, type_map)
-        stitched_mol = self.balance_electrostatics(stitched_mol)
+        stitched_mol = self.update_atom_types(stitched_mol, type_map, stitched_itp_to_pdb, target_reference.chain)
+        stitched_mol = self.balance_electrostatics(stitched_mol, stitched_itp_to_pdb, target_reference.chain)
+
+        return stitched_mol
 
         return stitched_mol
     
-    def update_atom_types(self, stitched_mol, type_map):
-        """
-        Updates specific atom types at the junction (e.g., NZ -> NG311).
-        """
-
+    def update_atom_types(self, stitched_mol, type_map, stitched_itp_to_pdb, target_chain):
+        """Updates specific atom types at the junction exclusively on the target chain."""
         for atom in stitched_mol.atoms:
-            if atom.res_n == self.res_id and atom.atom.strip() in type_map:
-                atom.type = type_map[atom.atom.strip()]
+            rec = stitched_itp_to_pdb.get(atom.number)
+            if rec and rec.res_seq == self.res_id and rec.chain.strip() == target_chain.strip():
+                if atom.atom.strip() in type_map:
+                    atom.type = type_map[atom.atom.strip()]
         return stitched_mol
     
-    def balance_electrostatics(self, stitched_mol, target_charge=0):
+    def balance_electrostatics(self, stitched_mol, stitched_itp_to_pdb, target_chain, target_charge=0):
         """
         Balances the electrostatic charge of the patched residue to ensure a perfect 
         integer net charge. It updates the heavy anchor atoms to match the patch 
@@ -381,37 +448,42 @@ class Stitcher:
         anchor_map = {'NZ': 'N', 'CE': 'C10', 'CD': 'C11'}
         
         for base_atom in stitched_mol.atoms:
-            if base_atom.res_n == self.res_id and base_atom.atom.strip() in anchor_map:
-                patch_equiv_name = anchor_map[base_atom.atom.strip()]
-                
-                # Look up the new charge from the raw patch molecule
-                patch_equiv_atom = next(a for a in self.patch.atoms if a.atom.strip() == patch_equiv_name)
-                
-                old_charge = float(base_atom.charge)
-                base_atom.charge = float(patch_equiv_atom.charge)
-
-                # Append a comment to the ITP line to show what changed
-                base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
+            rec = stitched_itp_to_pdb.get(base_atom.number)
+            if rec and rec.res_seq == self.res_id and rec.chain.strip() == target_chain.strip():
+                if base_atom.atom.strip() in anchor_map:
+                    patch_equiv_name = anchor_map[base_atom.atom.strip()]
+                    patch_equiv_atom = next(a for a in self.patch.atoms if a.atom.strip() == patch_equiv_name)
+                    
+                    old_charge = float(base_atom.charge)
+                    base_atom.charge = float(patch_equiv_atom.charge)
+                    base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
 
 
         # Identify which sink atoms are present in this specific residue
         possible_sinks = ['HD1' , 'HD2', 'HG1', 'HG2', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7']
-        active_sinks = [a for a in stitched_mol.atoms 
-                        if a.res_n == self.res_id and a.atom.strip() in possible_sinks]
+        active_sinks = []
+        target_residue_atoms = []
+
+        for a in stitched_mol.atoms:
+            rec = stitched_itp_to_pdb.get(a.number)
+            if rec and rec.res_seq == self.res_id and rec.chain.strip() == target_chain.strip():
+                target_residue_atoms.append(a)
+                if a.atom.strip() in possible_sinks:
+                    active_sinks.append(a)
 
         # Calculate the deficit
-        current_sum = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
+        current_sum = sum(float(a.charge) for a in target_residue_atoms)
         # target_sum = round(current_sum)
         delta_q = target_charge - current_sum     # ONLY FOR NEUTRAL LYSINES. NEED TO CHANGE THIS IF NOT.
 
         # Distribute only if we have sinks to take the charge
         if active_sinks and abs(delta_q) > 1e-6:
-            q_per_atom = delta_q / len(active_sinks) # Divide by actual count
+            q_per_atom = delta_q / len(active_sinks)
             for atom in active_sinks:
                 old_q = float(atom.charge)
                 atom.charge = old_q + q_per_atom
                 atom.comment = f"; balanced (was {old_q:.4f})"
 
-        total_stitched_charge = sum(float(a.charge) for a in stitched_mol.atoms if a.res_n == self.res_id)
-        print(f"Total Stitched Charge for Res {self.res_id}: {total_stitched_charge:.6f}")
+        total_stitched_charge = sum(float(a.charge) for a in target_residue_atoms)
+        print(f"Total Stitched Charge for Res {self.res_id} (Chain {target_chain.strip()}): {total_stitched_charge:.6f}")
         return stitched_mol
