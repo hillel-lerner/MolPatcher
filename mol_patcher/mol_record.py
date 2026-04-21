@@ -25,7 +25,6 @@ class PdbRecord:
     seg_id: str = ""
     ins_code: str = " "
 
-
 @dataclass
 class ItpAtom:
     number: int

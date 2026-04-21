@@ -222,8 +222,17 @@ class Stitcher:
         anchor_res_seq = target_anchors[2].res_seq
         anchor_name = target_anchors[2].name.strip()
 
+        base_map = self._build_pdb_to_itp_map(self.base.records, self.base.atoms, itp_chains=self.itp_chains)
+
+        old_itp_to_pdb = {}
+        for record in self.base.records:
+            itp_obj = base_map.get(id(record))
+            if itp_obj is not None:
+                old_itp_to_pdb[itp_obj.number] = record
+
         print("Building molecular graphs for deletion analysis...")
-        base_graph = MolGraph(self.base)
+        base_graph = MolGraph(self.base, itp_to_pdb_map=old_itp_to_pdb)
+        # Patch doesn't have a map, so it falls back to distance checks
         patch_graph = MolGraph(self.patch)
 
         self.base_deletions = self.get_bonded_hydrogens(self.base, base_graph, [target_anchors[2]])
@@ -283,15 +292,6 @@ class Stitcher:
         insert_idx_records = next(i for i, r in enumerate(final_records) if r.serial == anchor_serial) + 1
         final_records[insert_idx_records:insert_idx_records] = filter_patch_records
         
-        # Calculate insertion point for the ITP list based on the target residue and atom name.
-        base_map = self._build_pdb_to_itp_map(self.base.records, self.base.atoms, itp_chains=self.itp_chains)
-
-        old_itp_to_pdb = {}
-        for record in self.base.records:
-            itp_obj = base_map.get(id(record))
-            if itp_obj is not None:
-                old_itp_to_pdb[itp_obj.number] = record
-        
         # Sync base ITP residue numbers to the PDB and track old numbers
         for a in final_atoms:
             rec = old_itp_to_pdb.get(a.number)
@@ -349,8 +349,16 @@ class Stitcher:
         # Reindex and Sort
         reindex_topology(stitched_mol, remap_dict)
         
+        # Map the PdbRecord object to the ItpAtom object
+        stitched_map = self._build_pdb_to_itp_map(stitched_mol.records, stitched_mol.atoms, itp_chains=self.itp_chains)
+        stitched_itp_to_pdb = {}
+        for r in stitched_mol.records:
+            itp_obj = stitched_map.get(id(r))
+            if itp_obj:
+                stitched_itp_to_pdb[itp_obj.number] = r
+
         # Build graph on the final, cleanly-numbered molecule
-        stitched_graph = MolGraph(stitched_mol)
+        stitched_graph = MolGraph(stitched_mol, itp_to_pdb_map=stitched_itp_to_pdb)
 
         # Find the PDB graph indices of the NZ and C7 atoms
         nz_idx = next(i for i, r in enumerate(stitched_mol.records) 
@@ -360,14 +368,6 @@ class Stitcher:
         c7_idx = next(i for i, r in enumerate(stitched_mol.records) 
                     if r.res_seq == target_reference.res_seq 
                     and r.name.strip() == patch_bridge_name.strip())
-
-        # Map the PdbRecord object to the ItpAtom object
-        stitched_map = self._build_pdb_to_itp_map(stitched_mol.records, stitched_mol.atoms, itp_chains=self.itp_chains)
-        stitched_itp_to_pdb = {}
-        for r in stitched_mol.records:
-            itp_obj = stitched_map.get(id(r))
-            if itp_obj:
-                stitched_itp_to_pdb[itp_obj.number] = r
 
         # --- Translate and preserve original bonds ---
         for old_bond in self.base.bonds:

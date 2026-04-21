@@ -122,7 +122,6 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=Fal
         print(f"Error: Could not find a clash-free conformation for residue {res_id}. Exiting.")
         return
 
-
     # Save outputs
     pdb_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.pdb")
     itp_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.itp")
