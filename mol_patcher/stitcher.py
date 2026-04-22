@@ -369,6 +369,11 @@ class Stitcher:
         # Build graph on the final, cleanly-numbered molecule
         stitched_graph = MolGraph(stitched_mol, itp_to_pdb_map=stitched_itp_to_pdb)
 
+        if stitched_graph.is_distance_based:
+            warning_msg = "Connectivity Matrix produced with distance-based method. Some glycan bonds and/or disulfide bridges may be missing."
+            print(f"WARNING: {warning_msg}")
+            stitched_mol.notes.append(warning_msg)
+
         # Find the PDB graph indices of the NZ and C7 atoms
         nz_idx = next(i for i, r in enumerate(stitched_mol.records) 
                     if r.res_seq == target_anchors[2].res_seq 
