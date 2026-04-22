@@ -252,9 +252,15 @@ class Stitcher:
         # Filter Lists
         final_records = [r for r in self.base.records if r not in self.base_deletions]
         
-        # Disconnect ITP filtering from PDB index. Identify deleted atoms by matching residue number and atom name.
-        deleted_identifiers = [(r.res_seq, r.name.strip()) for r in self.base_deletions]
-        final_atoms = [a for a in self.base.atoms if (a.res_n, a.atom.strip()) not in deleted_identifiers]
+        final_atoms = []
+        for a in self.base.atoms:
+            rec = old_itp_to_pdb.get(a.number)
+            
+            # If the ITP atom maps to a specific physical PDB atom that was deleted, skip it!
+            if rec in self.base_deletions:
+                continue
+                
+            final_atoms.append(a)
         
         filter_patch_records, filter_patch_atoms = [], []
         dynamic_seg_id = target_anchors[0].seg_id
@@ -324,6 +330,9 @@ class Stitcher:
                 if a.res_n == target_anchors[2].res_seq and a.atom.strip() == target_anchors[2].name.strip():
                     anch_2_itp_obj = a
                     break
+                    
+        if anch_2_itp_obj is None:
+            raise ValueError(f"Error: Anchor atom {target_anchors[2].name.strip()} could not be found in the topology.")
 
         insert_idx_atoms = final_atoms.index(anch_2_itp_obj) + 1
         
