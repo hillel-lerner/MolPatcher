@@ -3,9 +3,12 @@
     "target_res_name": "LYS",
     "new_res_name": "LYX",
     "base_anchors": ["CE", "CD", "NZ"],
-    "base_deletions": ["HZ1", "HZ2", "HZ3"],
+    "base_bridge": "NZ",
+    "base_deletions": ["HZ2", "HZ3"], 
+    "patch_deletions": ["H8", "H9", "H10", "H11", "H12"],
     "patch_anchors": ["C10", "C11", "N"],
     "patch_bridge": "C7",
+    "patch_anchor_to_bridge": "N",
     "patch_files": {
         "itp": "pfp_patch_new.itp",
         "pdb": "pfp_patch_new.pdb"
@@ -20,5 +23,7 @@
         "NZ": "N",
         "CE": "C10",
         "CD": "C11"
-    }
+    },
+    "charge_sinks": ["HD1", "HD2", "HG1", "HG2", "H2", "H3", "H4", "H5", "H6", "H7"],
+    "target_charge": 0
 }
