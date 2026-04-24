@@ -1,0 +1,15 @@
+{
+    "system_name": "glycan_aspargine",
+    "target_res_name": "ASN",
+    "new_res_name": "ASX",
+    "base_bridge": "ND1",
+    "base_deletions": ["HD22"], 
+    "patch_deletions": [],
+    "patch_bridge": "C1",
+    "patch_files": {
+        "itp": "",
+        "pdb": ""
+    },
+    "charge_sinks": [],
+    "target_charge": 0
+}
