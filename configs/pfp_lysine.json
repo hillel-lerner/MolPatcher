@@ -25,5 +25,20 @@
         "CD": "C11"
     },
     "charge_sinks": ["HD1", "HD2", "HG1", "HG2", "H2", "H3", "H4", "H5", "H6", "H7"],
-    "target_charge": 0
+    "target_charge": 0,
+    "rigid_backbone": ["N", "H", "HN", "CA", "HA", "C", "O", "OXT"],
+    "chi_definitions": [
+        ["N", "CA", "CB", "CG"],
+        ["CA", "CB", "CG", "CD"],
+        ["CB", "CG", "CD", "CE"],
+        ["CG", "CD", "CE", "NZ"]
+    ],
+    "canonical_rotamers": [
+        [-60, 180, 180, 180],
+        [180, 180, 180, 180],
+        [60, 180, 180, 180],
+        [-60, -60, 180, 180],
+        [-60, 180, 60, 180],
+        [180, 60, 180, 180]
+    ]
 }

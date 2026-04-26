@@ -129,7 +129,7 @@ class PatchAligner:
 
         target_at3_pos = self.at1_coords + (target_vec_normalized * target_bond_length)
 
-        bond_rotation_obj, rmsd = Rotation.align_vectors([-target_vec], [bond2_vec])
+        bond_rotation_obj, rmsd, *_ = Rotation.align_vectors([-target_vec], [bond2_vec])
 
         for atom in atoms:
             coords = np.array([atom.x, atom.y, atom.z])
@@ -427,19 +427,15 @@ class RotamerSweeper:
     Sweeps through known lysine rotamers and rotates the patch around the junction where it attaches to the lysine.
     """
 
-    def __init__(self, mol, mol_graph, res_seq, chain=" "):
+    def __init__(self, mol, mol_graph, res_seq, config, chain=" "):
         self.mol = mol
         self.graph = mol_graph
         self.res_seq = res_seq
         self.chain = chain.strip()
+        self.config = config
 
-        self.chi_definitions = [
-            ['N', 'CA', 'CB', 'CG'],   # chi1
-            ['CA', 'CB', 'CG', 'CD'],  # chi2
-            ['CB', 'CG', 'CD', 'CE'],  # chi3
-            ['CG', 'CD', 'CE', 'NZ']   # chi4
-        ]
-        # Use object ID for unique mapping to avoid Serial Number duplicates
+        self.chi_definitions = self.config.get("chi_definitions", [])
+        
         self.obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
 
     def run_sweep(self, steric_checker):
@@ -456,22 +452,18 @@ class RotamerSweeper:
         :return: (bool) True if a clash-free conformation is found, False if all tiers fail.
         """
 
-        CANONICAL_LYSINE_ROTAMERS = [
-            [-60, 180, 180, 180], [180, 180, 180, 180], [60, 180, 180, 180],
-            [-60, -60, 180, 180], [-60, 180, 60, 180], [180, 60, 180, 180]    
-        ]
-        
+        canonical_rotamers = self.config.get("canonical_rotamers", [])
         spinner = ['|', '/', '-', '\\']
 
         # --- Tier 1: Canonical Staggered Rotamers ---
-        # Pivot is CA-CB. Everything from CB onwards moves.
+        # For Lysine, Pivot is CA-CB. Everything from CB onwards moves.
         print("Tier 1: Trying canonical staggered rotamers...")
         t1_names = self.chi_definitions[0] # N-CA-CB-CG
         t1_pivot = self.obj_to_idx[id(self.get_atom_by_name(t1_names[1]))] # CA
         t1_axis = self.obj_to_idx[id(self.get_atom_by_name(t1_names[2]))]  # CB
         t1_moving = [self.mol.records[idx] for idx in self.get_downstream_atoms(t1_pivot, t1_axis)]
         
-        for i, pose in enumerate(CANONICAL_LYSINE_ROTAMERS):
+        for i, pose in enumerate(canonical_rotamers):
             char = spinner[i % 4]
             print(f"\rTier 1 Progress... {char}", end='', flush=True)
             
@@ -490,8 +482,8 @@ class RotamerSweeper:
         # Pivot is CG-CD. Only CD onwards moves.
         print("Tier 2: Canonical rotations failed. Attempting systematic chi4 sweep...")
         t2_names = self.chi_definitions[3] # CG-CD-CE-NZ
-        t2_pivot = self.obj_to_idx[id(self.get_atom_by_name(t2_names[0]))] # CG
-        t2_axis = self.obj_to_idx[id(self.get_atom_by_name(t2_names[1]))]  # CD
+        t2_pivot = self.obj_to_idx[id(self.get_atom_by_name(t2_names[1]))] # CG
+        t2_axis = self.obj_to_idx[id(self.get_atom_by_name(t2_names[2]))]  # CD
         t2_moving = [self.mol.records[idx] for idx in self.get_downstream_atoms(t2_pivot, t2_axis)]
 
         # Get current state of the first 3 chi angles to keep them steady
@@ -543,11 +535,14 @@ class RotamerSweeper:
 
     def attempt_patch_twist(self, steric_checker):
         """Rotates only the patch molecule in 2-degree steps."""
-        nz = self.get_atom_by_name('NZ')
-        c7 = self.get_atom_by_name('C7') 
+        base_bridge_name = self.config["base_bridge"]
+        patch_bridge_name = self.config["patch_bridge"]
+
+        base_atom = self.get_atom_by_name(base_bridge_name)
+        patch_atom = self.get_atom_by_name(patch_bridge_name) 
         
-        pivot_idx = self.obj_to_idx[id(nz)]
-        axis_idx = self.obj_to_idx[id(c7)]
+        pivot_idx = self.obj_to_idx[id(base_atom)]
+        axis_idx = self.obj_to_idx[id(patch_atom)]
         
         moving_indices_t3 = self.get_downstream_atoms(pivot_idx, axis_idx)
         moving_records_t3 = [self.mol.records[idx] for idx in moving_indices_t3]
@@ -559,7 +554,7 @@ class RotamerSweeper:
             char = spinner[i % 4]
             print(f"\rTier 3 Progress... {char}", end='', flush=True)
 
-            rotate_dihedral(moving_records_t3, (nz.x, nz.y, nz.z), (c7.x, c7.y, c7.z), 2)
+            rotate_dihedral(moving_records_t3, (base_atom.x, base_atom.y, base_atom.z), (patch_atom.x, patch_atom.y, patch_atom.z), 2)
             clash_info = steric_checker.check_clashes(limit_to_atoms=moving_records_t3)
             
             if not clash_info:
@@ -574,10 +569,9 @@ class RotamerSweeper:
     def get_atom_by_name(self, name):
         """Fetches the PdbRecord matching name, residue, AND chain."""
         try:
-            # Added self.chain.strip() check here to prevent grabbing atoms from other chains
             return next(r for r in self.mol.records 
                         if r.res_seq == self.res_seq 
-                        and r.name.strip() == name
+                        and r.name.strip() == name.strip()
                         and r.chain.strip() == self.chain)
         except StopIteration:
             print(f"Error: Could not find atom '{name}' in residue {self.res_seq} chain '{self.chain}'")

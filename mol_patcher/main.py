@@ -1,5 +1,6 @@
 import argparse
 import sys, os, shutil
+import json
 
 from mol_patcher.stitcher import Stitcher, Patchloader
 from mol_patcher.mol_record import Mol
@@ -8,8 +9,8 @@ from mol_patcher.topology_io import TopologyParser, TopologyBuilder
 from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker, RotamerSweeper
 from mol_patcher import utilities
 
-def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=False):
-    
+def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, config_file, junction_config, copy_ff=False):
+
     """
     Orchestrates the entire MolPatcher pipeline: loading data, aligning the patch,
     stitching topologies, performing rotamer optimization, and saving final outputs.
@@ -23,7 +24,10 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=Fal
     :return: None. Writes the patched PDB and ITP files to disk.
     """
 
-    run_folder_name = f"patched_lys_{res_id}"
+    target_res = junction_config["target_res_name"]
+    new_res = junction_config["new_res_name"]
+
+    run_folder_name = f"patched_{target_res.lower()}_{res_id}"
     final_outdir = os.path.join(outdir, run_folder_name)
     os.makedirs(final_outdir, exist_ok=True)
 
@@ -31,7 +35,7 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=Fal
     itp_path = itp_file
     
     # Load Patch Data 
-    loader = Patchloader()
+    loader = Patchloader(config_file)
     pfp_atoms = loader.get_pfp_pdb()
     patch_mol = Mol(name="patch", records=pfp_atoms)
     loader.get_pfp_itp(patch_mol)
@@ -52,52 +56,48 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=Fal
         os.remove(safe_itp_path)
 
     # Locate Anchors
-    # Handle empty chains to ensure precise matching
     chain_check = chain.strip() if chain.strip() else ""
     target_residue_atoms = [r for r in base_mol.records 
                             if r.res_seq == res_id 
                             and (not chain_check or r.chain.strip() == chain_check)]
 
-    # Check if the residue even exists in the PDB file
     if not target_residue_atoms:
         print(f"Error: Could not find residue {res_id} in chain '{chain_check}'.")
         return
 
-    # Check if the residue is actually a Lysine
     actual_res_name = target_residue_atoms[0].res_name.strip()
-    if actual_res_name == "LYX":
+    
+    if actual_res_name == new_res:
         print(f"Warning: Target residue '{actual_res_name} {res_id}' is already modified by MolPatcher.")
-    elif actual_res_name != "LYS" and actual_res_name != "LYX":
-        print(f"Error: Target residue {res_id} is '{actual_res_name}', not 'LYS'. MolPatcher requires a Lysine residue.")
+    elif actual_res_name != target_res and actual_res_name != new_res:
+        print(f"Error: Target residue {res_id} is '{actual_res_name}', not '{target_res}'. MolPatcher requires a {target_res} residue.")
         return
-    # -----------------------------
 
     target_anchors = []
     
     try:
-        for name in ["CE", "CD", "NZ"]:
+        for name in junction_config["base_anchors"]:
             anchor = next(r for r in base_mol.records 
                         if r.res_seq == res_id 
                         and r.name.strip() == name 
                         and (not chain_check or r.chain.strip() == chain_check))
             target_anchors.append(anchor)
     except StopIteration:
-        print(f"Error: Lysine {res_id} is missing required anchor atoms (CE, CD, or NZ).")
+        print(f"Error: {target_res} {res_id} is missing required anchor atoms ({', '.join(junction_config['base_anchors'])}).")
         return
 
-    pfp_anchors = [
-        next(r for r in patch_mol.records if r.name.strip() == "C10"),
-        next(r for r in patch_mol.records if r.name.strip() == "C11"),
-        next(r for r in patch_mol.records if r.name.strip() == "N")
+    patch_anchors = [
+        next(r for r in patch_mol.records if r.name.strip() == name)
+        for name in junction_config["patch_anchors"]
     ]
 
     # Align the Patch
-    aligner = PatchAligner(patch_mol.records, pfp_anchors, target_anchors)
+    aligner = PatchAligner(patch_mol.records, patch_anchors, target_anchors)
     aligned_pfp_atoms = aligner.implement_align()
 
     # Execute the Stitcher
-    # This automatically handles topology mapping, atom typing, and electrostatic balancing
-    stitcher = Stitcher(base_mol, patch_mol, target_res_id=res_id)
+    # CHANGED: Passed the config dictionary into Stitcher
+    stitcher = Stitcher(base_mol, patch_mol, target_res_id=res_id, config=junction_config, itp_chains=itp_chains)
     stitched_mol = stitcher.stitch_molecules(
         aligned_patch_atoms=aligned_pfp_atoms, 
         target_reference=target_anchors[0], 
@@ -107,13 +107,13 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=Fal
     # --- OPTIMIZATION (ROTAMER SWEEP) ---
     graph = MolGraph(stitched_mol, distXX=1.90)
 
-    backbone_names = ['N', 'H', 'HN', 'CA', 'HA', 'C', 'O']
+    backbone_names = junction_config.get("rigid_backbone", ['N', 'CA', 'C', 'O'])
     moving_atoms = [a for a in stitched_mol.records 
                     if a.res_seq == res_id and a.name.strip() not in backbone_names]
     static_atoms = [a for a in stitched_mol.records if a.res_seq != res_id]
 
     checker = StericChecker(graph, moving_atoms, static_atoms, tolerance=0.75)
-    sweeper = RotamerSweeper(stitched_mol, graph, res_id, chain=chain_check)
+    sweeper = RotamerSweeper(stitched_mol, graph, res_id, junction_config, chain=chain_check)
 
     print(f"Starting optimization for {len(moving_atoms)} atoms...")
     success = sweeper.run_sweep(checker)
@@ -123,8 +123,8 @@ def run_patch(pdb_file, res_id, chain, itp_file, outdir, itp_chains, copy_ff=Fal
         return
 
     # Save outputs
-    pdb_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.pdb")
-    itp_outfile = os.path.join(final_outdir, f"patched_lys_{res_id}.itp")
+    pdb_outfile = os.path.join(final_outdir, f"patched_{target_res.lower()}_{res_id}.pdb")
+    itp_outfile = os.path.join(final_outdir, f"patched_{target_res.lower()}_{res_id}.itp")
 
     PdbBuilder(pdb_outfile, stitched_mol.records, headers).write_pdb()
     TopologyBuilder(stitched_mol, itp_outfile, stitched_mol.name).write_itp()
@@ -164,18 +164,25 @@ def main():
     parser.add_argument("-res", "--res", type=int, required=True, help="Target residue ID")
     parser.add_argument("-c", "-chain", "--chain", default=" ", help="Chain ID")
     parser.add_argument("-itp_chains", nargs="+", default=[], help="Chains included in the ITP (e.g., -itp_chains B C)")
+    
+    parser.add_argument("-config", "--config", required=True, help="Path to JSON configuration file")
+    
     parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
     parser.add_argument("-ff", "--ff", action="store_true", help="Copy master forcefield")
     
     args = parser.parse_args()
     
-    # Resolve absolute paths based on where the user is currently standing
+    with open(args.config, 'r') as f:
+        junction_config = json.load(f)
+        
+    config_basename = os.path.basename(args.config)
+    
     pdb_abs = os.path.abspath(args.pdb)
     itp_abs = os.path.abspath(args.itp)
 
     itp_chains_list = args.itp_chains if args.itp_chains else [args.chain.strip()]
     
-    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir, itp_chains_list, copy_ff=args.ff)
+    run_patch(pdb_abs, args.res, args.chain, itp_abs, args.outdir, itp_chains_list, config_basename, junction_config, copy_ff=args.ff)
 
 if __name__ == "__main__":
     main()
