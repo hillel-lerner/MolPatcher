@@ -76,6 +76,11 @@ class PatchAligner:
         """
 
         self.patch_atoms = patch_atoms  
+
+        if not patch_anchors or not target_anchors:
+            self.rotation_object = None
+            self.translation_vector = None
+            return
         
         # Extract coords from provided atom objects
         patch_anchor_coords = get_coords_array(patch_anchors)
@@ -128,7 +133,7 @@ class PatchAligner:
         target_magnitude = np.linalg.norm(target_vec)
         target_vec_normalized = target_vec / target_magnitude
 
-        target_at3_pos = self.at1_coords + (target_vec_normalized * target_bond_length)
+        target_at3_pos = self.at2_coords + (target_vec_normalized * target_bond_length)
 
         bond_rotation_obj, rmsd, *_ = Rotation.align_vectors([-target_vec], [bond2_vec])
 
@@ -144,8 +149,8 @@ class PatchAligner:
         """
         Spins the patch molecule around the new junction bond to match a specific dihedral angle.
 
-        :param p1: (tuple/list) Base parent atom (e.g., Serine CA)
-        :param p2: (tuple/list) Base anchor atom (e.g., Serine N) - Axis of rotation
+        :param p1: (tuple/list) Base parent atom (e.g., Aspargine CA)
+        :param p2: (tuple/list) Base anchor atom (e.g., Aspargine N) - Axis of rotation
         :param p3: (tuple/list) Patch anchor atom (e.g., Glycan C1) - Pivot for rotation
         :param p4: (tuple/list) Patch child atom (e.g., Glycan Ring O)
         :return: (numpy.ndarray) The final transformed coordinate array.
