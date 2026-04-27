@@ -386,8 +386,8 @@ class Stitcher:
                         and r.chain.strip() == target_reference.chain.strip())
 
         patch_idx = next(i for i, r in enumerate(stitched_mol.records)
-                         if r.res_seq == target_reference.res_seq
-                         and r.name.strip() == patch_bridge_name.strip())
+                        if r.res_seq == target_reference.res_seq
+                        and r.name.strip() == patch_bridge_name.strip())
 
         # Translate and preserve original base bonds
         for old_bond in self.base.bonds:
