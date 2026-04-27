@@ -374,14 +374,20 @@ class Stitcher:
         stitched_graph = MolGraph(stitched_mol, itp_to_pdb_map=stitched_itp_to_pdb)
 
         # Dynamically lookup the indices using our extracted config names
-        base_idx = next(i for i, r in enumerate(stitched_mol.records) 
-                    if r.res_seq == self.res_id 
-                    and r.name.strip() == base_bridge_name.strip()
-                    and r.chain.strip() == target_reference.chain.strip())
-                    
-        patch_idx = next(i for i, r in enumerate(stitched_mol.records) 
-                    if r.res_seq == target_reference.res_seq 
-                    and r.name.strip() == patch_bridge_name.strip())
+        if stitched_graph.is_distance_based:
+            warning_msg = "Connectivity Matrix produced with distance-based method. Some glycan bonds and/or disulfide bridges may be missing."
+            print(f"WARNING: {warning_msg}")
+            stitched_mol.notes.append(warning_msg)
+
+        # 2. Keep your dynamic lookups from stage2-general
+        base_idx = next(i for i, r in enumerate(stitched_mol.records)
+                        if r.res_seq == self.res_id
+                        and r.name.strip() == base_bridge_name.strip()
+                        and r.chain.strip() == target_reference.chain.strip())
+
+        patch_idx = next(i for i, r in enumerate(stitched_mol.records)
+                         if r.res_seq == target_reference.res_seq
+                         and r.name.strip() == patch_bridge_name.strip())
 
         # Translate and preserve original base bonds
         for old_bond in self.base.bonds:

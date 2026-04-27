@@ -65,6 +65,10 @@ class ItpDih:
     type: int
 
 @dataclass
+class Notes:
+    note : str
+
+@dataclass
 class Mol:
     """
     A standardized container for molecular topology and coordinate data.
@@ -78,6 +82,7 @@ class Mol:
     pairs: List[ItpPair] = field(default_factory=list)
     angles: List[ItpAngle] = field(default_factory=list)
     dihs: List[ItpDih] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
     
     def load_itp(self, itp_path: str):
         """

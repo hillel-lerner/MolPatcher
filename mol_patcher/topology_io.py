@@ -183,6 +183,13 @@ class TopologyBuilder:
         reindex_topology(self.mol)
 
         with open(self.filename, 'w') as f:
+            
+            # Notes
+            for note in self.mol.notes:
+                f.write(f"; {note}\n")
+            if self.mol.notes:
+                f.write("\n")
+
             # Molecule Header
             if self.mol.moltype_section:
                 f.write(self.mol.moltype_section)

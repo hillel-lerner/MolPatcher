@@ -180,6 +180,7 @@ class MolGraph:
         self.matrix = None
         self.nx_graph = nx.Graph()
         self.Nmols = None
+        self.is_distance_based = False
 
         for i, record in enumerate(mol.records):
             self.nx_graph.add_node(i)
@@ -187,7 +188,8 @@ class MolGraph:
             self._build_edges_from_topology(itp_to_pdb_map)
         else:
             self._build_matrix()  # Automatically build the graph upon initialization
-
+            self.is_distance_based = True
+    
     def copy(self):
         """
         Creates a shallow copy of the MolGraph. 
@@ -225,7 +227,7 @@ class MolGraph:
                     conn_mat[idx1, idx2] = 1
                     conn_mat[idx2, idx1] = 1
 
-        # Store the final state variables
+        # Store final state variables
         self.matrix = conn_mat
         self.Nmols = nx.number_connected_components(self.nx_graph)
     
