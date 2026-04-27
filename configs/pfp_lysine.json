@@ -4,11 +4,10 @@
     "new_res_name": "LYX",
     "base_anchors": ["CE", "CD", "NZ"],
     "base_bridge": "NZ",
-    "base_deletions": ["HZ2", "HZ3"], 
-    "patch_deletions": ["H8", "H9", "H10", "H11", "H12"],
+    "base_deletions": ["HZ2", "HZ3"],
     "patch_anchors": ["C10", "C11", "N"],
     "patch_bridge": "C7",
-    "patch_anchor_to_bridge": "N",
+    "patch_merged_atom": "N",
     "patch_files": {
         "itp": "pfp_patch_new.itp",
         "pdb": "pfp_patch_new.pdb"

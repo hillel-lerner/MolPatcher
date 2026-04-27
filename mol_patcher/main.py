@@ -162,7 +162,7 @@ def main():
     parser.add_argument("-pdb", "--pdb", required=True, help="Input PDB file")
     parser.add_argument("-itp", "--itp", required=True, help="Input ITP file")
     parser.add_argument("-res", "--res", type=int, required=True, help="Target residue ID")
-    parser.add_argument("-c", "-chain", "--chain", default=" ", help="Chain ID")
+    parser.add_argument("-chain", "--chain", default=" ", help="Chain ID")
     parser.add_argument("-itp_chains", nargs="+", default=[], help="Chains included in the ITP (e.g., -itp_chains B C)")
     
     parser.add_argument("-config", "--config", required=True, help="Path to JSON configuration file")
@@ -171,11 +171,25 @@ def main():
     parser.add_argument("-ff", "--ff", action="store_true", help="Copy master forcefield")
     
     args = parser.parse_args()
+    config_path = args.config
+
+    if not os.path.exists(config_path):
+        main_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(main_dir)
+        internal_config_path = os.path.join(project_root, 'configs', args.config)
+
+        if not internal_config_path.endswith('.json'):
+            internal_config_path += '.json'
+
+        if os.path.exists(internal_config_path):
+            config_path = internal_config_path
+        else:
+            raise FileNotFoundError(f"Config file not found locally or in MolPatcher/configs: {args.config}")
     
-    with open(args.config, 'r') as f:
+    with open(config_path, 'r') as f:
         junction_config = json.load(f)
         
-    config_basename = os.path.basename(args.config)
+    config_basename = os.path.basename(config_path)
     
     pdb_abs = os.path.abspath(args.pdb)
     itp_abs = os.path.abspath(args.itp)
