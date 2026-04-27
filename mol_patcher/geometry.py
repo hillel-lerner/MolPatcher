@@ -8,6 +8,7 @@ import networkx as nx
 import math
 import copy
 import sys
+import json
 
     
 def get_coords_array(atoms: List[PdbRecord]) -> np.ndarray:
@@ -64,31 +65,31 @@ class PatchAligner:
     Update the coordinates of the patch molecules PdbRecord Objects
     """
 
-    def __init__(self, pfp_atoms: List[PdbRecord], pfp_anchors: List[PdbRecord], target_anchors: List[PdbRecord]):
+    def __init__(self, patch_atoms: List[PdbRecord], patch_anchors: List[PdbRecord], target_anchors: List[PdbRecord]):
 
         """
         Constructs the PatchAligner.
 
-        :param pfp_atoms: (list) All PdbRecord objects comprising the patch molecule.
-        :param pfp_anchors: (list) PdbRecord objects of the patch atoms to be aligned.
+        :param patch_atoms: (list) All PdbRecord objects comprising the patch molecule.
+        :param patch_anchors: (list) PdbRecord objects of the patch atoms to be aligned.
         :param target_anchors: (list) PdbRecord objects of the target protein atoms.
         """
 
-        self.patch_atoms = pfp_atoms  
+        self.patch_atoms = patch_atoms  
         
         # Extract coords from provided atom objects
-        pfp_anchor_coords = get_coords_array(pfp_anchors)
+        patch_anchor_coords = get_coords_array(patch_anchors)
         target_anchor_coords = get_coords_array(target_anchors)
 
-        pfp_centroid = np.mean(pfp_anchor_coords, axis=0)
+        patch_centroid = np.mean(patch_anchor_coords, axis=0)
         target_centroid = np.mean(target_anchor_coords, axis=0)
 
-        pfp_centered = pfp_anchor_coords - pfp_centroid
+        patch_centered = patch_anchor_coords - patch_centroid
         target_centered = target_anchor_coords - target_centroid
 
-        self.rotation_object, rmsd, *_ = Rotation.align_vectors(target_centered, pfp_centered)
-        rotated_pfp_centroid = self.rotation_object.apply(pfp_centroid)
-        self.translation_vector = target_centroid - rotated_pfp_centroid
+        self.rotation_object, rmsd, *_ = Rotation.align_vectors(target_centered, patch_centered)
+        rotated_patch_centroid = self.rotation_object.apply(patch_centroid)
+        self.translation_vector = target_centroid - rotated_patch_centroid
 
     def implement_align(self):
         coords = np.array([[a.x, a.y, a.z] for a in self.patch_atoms])

@@ -250,9 +250,9 @@ class Stitcher:
         base_map = self._build_pdb_to_itp_map(self.base.records, self.base.atoms, itp_chains=self.itp_chains)
 
         base_bridge_record = next(r for r in self.base.records 
-                                  if r.res_seq == self.res_id 
-                                  and r.name.strip() == base_bridge_name.strip()
-                                  and r.chain.strip() == target_reference.chain.strip())
+                                if r.res_seq == self.res_id 
+                                and r.name.strip() == base_bridge_name.strip()
+                                and r.chain.strip() == target_reference.chain.strip())
 
         anch_2_itp_obj = base_map.get(id(base_bridge_record))
         if anch_2_itp_obj is None:
@@ -379,7 +379,6 @@ class Stitcher:
             print(f"WARNING: {warning_msg}")
             stitched_mol.notes.append(warning_msg)
 
-        # 2. Keep your dynamic lookups from stage2-general
         base_idx = next(i for i, r in enumerate(stitched_mol.records)
                         if r.res_seq == self.res_id
                         and r.name.strip() == base_bridge_name.strip()
