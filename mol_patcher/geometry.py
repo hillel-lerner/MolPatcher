@@ -41,7 +41,7 @@ def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
         axis_vec /= axis_norm
         
         # Create the rotation object using the rotation vector (angle * axis)
-        rot_obj = Rotation.from_rotvec(axis_vec * np.radians(angle_degrees))  # Scipy's from_rotvec uses quaternions for the calculation
+        rot_obj = Rotation.from_rotvec(axis_vec * np.radians(angle_degrees))
         pivot = np.array(pivot_coord)
         
         # Transform each atom
@@ -163,8 +163,70 @@ class PatchAligner:
 
         current_dih = get_dihedral(self.p1_coords, self.p2_coords, self.p3_coords, self.p4_coords)
         delta = target_dih - current_dih
-        rotate_dihedral(atoms, self.p3_coords, self.p2_coords, delta)
+        rotate_dihedral(atoms, self.p2_coords, self.p3_coords, delta)   # fixed so it's properly p2 -> p3 axis
         
+        return atoms
+    
+    def set_junction_angle(self, atoms: List[PdbRecord], p1, p2, p3, p_ref, target_angle, repulsion_coord=None):
+        """
+        Bends the bond angle of a junction using a reference atom to define the bending plane.
+
+        :param atoms: (list) PdbRecord objects to be rotated (the patch).
+        :param p1: (PdbRecord) Base parent atom (e.g., C6)
+        :param p2: (PdbRecord) Base anchor atom / The Vertex (e.g., O6)
+        :param p3: (PdbRecord) Patch anchor atom (e.g., Galactose C1)
+        :param p_ref: (PdbRecord) Reference atom to define the plane (e.g., C5)
+        :param target_angle: (float) The desired bond angle in degrees (e.g., 114.0)
+        """
+        v1 = np.array([p1.x, p1.y, p1.z]) - np.array([p2.x, p2.y, p2.z])
+        v3 = np.array([p3.x, p3.y, p3.z]) - np.array([p2.x, p2.y, p2.z])
+        v_ref = np.array([p_ref.x, p_ref.y, p_ref.z]) - np.array([p2.x, p2.y, p2.z])
+
+        cosine_angle = np.dot(v1, v3) / (np.linalg.norm(v1) * np.linalg.norm(v3))
+        cosine_angle = np.clip(cosine_angle, -1.0, 1.0) 
+        current_angle = np.degrees(np.arccos(cosine_angle))
+        
+        delta = target_angle - current_angle
+
+        hinge_axis = np.cross(v1, v_ref)
+        axis_norm = np.linalg.norm(hinge_axis)
+        
+        if axis_norm == 0:
+            raise ValueError("Reference atoms are collinear; cannot define a bending plane.")
+            
+        hinge_axis_normalized = hinge_axis / axis_norm
+
+        pivot = np.array([p2.x, p2.y, p2.z])
+
+        rot_forward = Rotation.from_rotvec(hinge_axis_normalized * np.radians(delta))
+
+        if repulsion_coord is not None:
+            # Calc the opposite rotation
+            rot_backward = Rotation.from_rotvec(hinge_axis_normalized * np.radians(-delta))
+
+            # Find the patch center of mass
+            patch_coords = np.array([[a.x, a.y, a.z] for a in atoms])
+            patch_centroid = np.mean(patch_coords, axis=0)
+
+            # Test centroid under both hinge rotations
+            test_pos_1 = rot_forward.apply(patch_centroid - pivot) + pivot
+            test_pos_2 = rot_backward.apply(patch_centroid - pivot) + pivot
+
+            # Measure distances between the new patch centroids and the repulsion coordinate
+            dist1 = np.linalg.norm(test_pos_1 - np.array(repulsion_coord))
+            dist2 = np.linalg.norm(test_pos_2 - np.array(repulsion_coord))
+
+            # Select the rotation that maximizes the distance
+            best_rot = rot_forward if dist1 > dist2 else rot_backward
+        else:
+            best_rot = rot_forward
+
+        # Apply rotation
+        for atom in atoms:
+            pos = np.array([atom.x, atom.y, atom.z])
+            final_pos = best_rot.apply(pos - pivot) + pivot
+            atom.x, atom.y, atom.z = final_pos
+
         return atoms
 
 class MolGraph:
