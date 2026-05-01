@@ -44,6 +44,8 @@ if __name__ == "__main__":
     at3_glyc_anchor = next(r for r in glyc_records if r.name.strip() == "C1" and r.res_name == glyc_res and r.res_seq == glyc_res_no)
     at4_glyc_leaving = next(r for r in glyc_records if r.name.strip() == "O1" and r.res_name == glyc_res and r.res_seq == glyc_res_no)
 
+    at_od1 = next(r for r in proa_records if r.name.strip() == "OD1" and r.res_name == proa_res and r.res_seq == proa_res_no)
+
 
     # repulsion coordinates
     base_coords = np.array([[r.x, r.y, r.z] for r in proa_records])
@@ -62,6 +64,19 @@ if __name__ == "__main__":
         target_bond_length=bond_length
     )
 
+    target_omega = 180.0
+    
+    aligned_glyc = aligner.set_junction_dihedral(
+        atoms=aligned_glyc, 
+        p1=at_od1, 
+        p2=at1_pep_parent, # This is your CG
+        p3=at2_pep_anchor, # This is your ND2
+        p4=at3_glyc_anchor, # This is your C1
+        target_dih=target_omega
+    )
+    
+    print(f"Success: Omega_N locked to {target_omega}° (trans-planar configuration).")
+
     p_ref = next(r for r in proa_records if r.name.strip() == "CB" and r.res_name == proa_res and r.res_seq == proa_res_no)
 
     # Apply the angle adjustment
@@ -78,7 +93,7 @@ if __name__ == "__main__":
     
 
     p4_glyc_child = next(r for r in glyc_records if r.name.strip() == "O5")
-    target_angle = 180 
+    target_angle = -120 
 
     aligned_glyc = aligner.set_junction_dihedral(
         atoms=aligned_glyc, 
@@ -90,7 +105,7 @@ if __name__ == "__main__":
     )
     print(f"Dihedral twisted to {target_angle} degrees.")
 
-    proa_atoms_to_delete = [] 
+    proa_atoms_to_delete = ["HD21"] 
     filtered_proa = [atom for atom in proa_records if atom.name.strip() not in proa_atoms_to_delete]
 
     glyc_atoms_to_delete = ["O1", "HO1"]

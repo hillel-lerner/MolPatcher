@@ -11,5 +11,10 @@
         "pdb": ""
     },
     "charge_sinks": [],
-    "target_charge": 0
+    "target_charge": 0,
+    "itp_junction": {
+        "bond_type": 1,
+        "angle_type": 5,
+        "dih_type": 9
+    }
 }

@@ -63,6 +63,12 @@ class Stitcher:
         self.patch_deletions = []
         self.junction_interactions = []
 
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        codes_path = os.path.join(project_root, 'configs', 'glycan_codes.json')
+        with open(codes_path, 'r') as f:
+            self.glycan_codes = json.load(f)
+
     def get_bonded_hydrogens(self, mol, mol_graph, anchors):
         """
         Uses the pre-built molecular connectivity graph to identify hydrogens bonded to specific anchors.
@@ -237,7 +243,7 @@ class Stitcher:
         
         base_bridge_name = self.config["base_bridge"]
         patch_bridge_name = self.config["patch_bridge"]
-        patch_merged_name = self.config["patch_merged_atom"]
+        patch_merged_name = self.config.get("patch_merged_atom", None)
         
         target_res_name = self.config["target_res_name"]
         new_res_name = self.config["new_res_name"]
@@ -287,25 +293,43 @@ class Stitcher:
         dynamic_seg_id = target_anchors[0].seg_id
 
         # Append patch atoms with their new designation
+        # Find the highest residue number currently in the target chain
+        max_chain_res = max((r.res_seq for r in self.base.records if r.chain.strip() == target_reference.chain.strip()), default=target_reference.res_seq)
+
+        # Append patch atoms with their new designation
         for i, record in enumerate(aligned_patch_atoms):
             if record not in self.patch_deletions and record not in patch_overlap_anchors:
-                filter_patch_records.append(replace(record, res_name=new_res_name, 
-                                        chain=target_reference.chain, res_seq=target_reference.res_seq, 
-                                        seg_id=dynamic_seg_id))
                 original_atom = self.patch.atoms[i]
-                old_res_n = original_atom.res_n
-                new_atom = replace(original_atom, res_n=target_reference.res_seq, res=new_res_name)
+                
+                # If merging into one residue (PFP), squash the name and number to the anchor site.
+                # If appending a glycan, keep the sugar name and add it to the END of the chain sequence.
+                if patch_merged_name:
+                    apply_res_name = new_res_name
+                    apply_res_seq = target_reference.res_seq
+                else:
+                    apply_res_name = record.res_name
+                    apply_res_seq = max_chain_res + record.res_seq 
 
-                if old_res_n != target_reference.res_seq:
+                filter_patch_records.append(replace(record, res_name=apply_res_name, 
+                                        chain=target_reference.chain, res_seq=apply_res_seq, 
+                                        seg_id=dynamic_seg_id))
+                
+                new_atom = replace(original_atom, res_n=apply_res_seq, res=apply_res_name)
+
+                if original_atom.res_n != apply_res_seq:
                     existing_comment = new_atom.comment.strip() if hasattr(new_atom, 'comment') and new_atom.comment else ""
-                    new_atom.comment = f"{existing_comment} ; old_res: {old_res_n}".strip()
+                    new_atom.comment = f"{existing_comment} ; old_res: {original_atom.res_n}".strip()
                     
                 filter_patch_atoms.append(new_atom)
 
+        valid_names_str = self.glycan_codes.get("res_name", {}).get("PDB", {}).get(target_res_name, target_res_name)
+        valid_names = valid_names_str.split()
+
         # Rename the preserved base protein atoms at the target site
         for r in final_records:
-            if r.res_seq == target_reference.res_seq and r.chain == target_reference.chain and r.res_name.strip() == target_res_name:
-                r.res_name = new_res_name
+            if r.res_seq == target_reference.res_seq and r.chain == target_reference.chain:
+                if r.res_name.strip() in valid_names:
+                    r.res_name = new_res_name
 
         for atom in filter_patch_atoms:
             atom.number += self.offset
@@ -351,16 +375,23 @@ class Stitcher:
                         self.base.angles + patch_angles, self.base.dihs + patch_dihs)
         
         # JUNCTION INTERACTIONS AND TOPOLOGY REINDEXING
+        junction_cfg = self.config.get("itp_junction", {})
+        b_type = junction_cfg.get("bond_type", 1)
+        a_type = junction_cfg.get("angle_type", 5)
+        d_type = junction_cfg.get("dih_type", 9)
+
         patch_bridge_idx = next(a for a in self.patch.atoms if a.atom.strip() == patch_bridge_name.strip()).number + self.offset
         anch_2_itp = anch_2_itp_obj.number
-        
-        stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, 1))
+
+        stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, b_type))
 
         patch_n_idx = next(a.number for a in self.patch.atoms if a.atom.strip() == patch_merged_name.strip()) + self.offset
-        remap_dict = {
-            patch_n_idx: anch_2_itp   
-        }
-        
+
+        remap_dict = {}
+        if patch_merged_name:
+            patch_n_idx = next(a.number for a in self.patch.atoms if a.atom.strip() == patch_merged_name.strip()) + self.offset
+            remap_dict = {patch_n_idx: anch_2_itp}
+            
         reindex_topology(stitched_mol, remap_dict)
         
         # REBUILD GRAPH AND INJECT PARAMETERS
@@ -408,11 +439,11 @@ class Stitcher:
         print(f"Topology junction built: 1 bond, {len(angles_to_check)} angles, {len(dihedrals_to_check)} dihedrals, and {len(dihedrals_to_check)} pairs, added.")
         
         for a1, a2, a3 in angles_to_check:
-            stitched_mol.angles.append(ItpAngle(a1, a2, a3, 5))
+            stitched_mol.angles.append(ItpAngle(a1, a2, a3, a_type))
 
         for a1, a2, a3, a4 in dihedrals_to_check:
-            stitched_mol.dihs.append(ItpDih(a1, a2, a3, a4, 9))
-            stitched_mol.pairs.append(ItpPair(a1, a4, 1)) 
+            stitched_mol.dihs.append(ItpDih(a1, a2, a3, a4, d_type))
+            stitched_mol.pairs.append(ItpPair(a1, a4, 1))
             
         stitched_mol.bonds.sort(key=lambda x: x.a1)
         stitched_mol.pairs.sort(key=lambda x: x.a1)
@@ -449,7 +480,7 @@ class Stitcher:
         # ANCHOR CHARGE INHERITANCE
         # The base protein anchors inherit the exact partial charges from the patch 
         # topology to ensure the new junction bond is electrostatically stable.
-        anchor_map = self.config["charge_inheritance"]
+        anchor_map = self.config.get("charge_inheritance", {})
         
         for base_atom in stitched_mol.atoms:
             rec = stitched_itp_to_pdb.get(base_atom.number)

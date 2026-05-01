@@ -228,6 +228,40 @@ class PatchAligner:
             atom.x, atom.y, atom.z = final_pos
 
         return atoms
+    
+    def align_from_template(self, base_records, patch_records, template, base_res_idx):
+        """
+        Executes alignment based on JSON template.
+        """
+        # Find the connecting residue of the glycan (lowest res_seq)
+        root_idx = min(r.res_seq for r in patch_records)
+        
+        # Configs
+        b_cfg = template["anchors"]["base"]
+        p_cfg = template["anchors"]["patch"]
+        geom = template["geometry"]
+        base_res = base_res_idx.res
+        patch_res = patch_records.res
+
+        def get_atom(recs, name, res, seq):
+            return next((r for r in recs if r.name.strip() == name and r.res_name == res and r.res_seq == seq), None)
+
+        at_cg = get_atom(base_records, b_cfg["parent"], base_res, base_res_idx)
+        at_nd2 = get_atom(base_records, b_cfg["anchor"], base_res, base_res_idx)
+        at_cb = get_atom(base_records, b_cfg["ref"], base_res, base_res_idx)
+        at_od1 = get_atom(base_records, b_cfg["carbonyl"], base_res, base_res_idx)
+
+        at_c1 = get_atom(patch_records, p_cfg["anchor"], patch_res, root_idx)
+        at_o5 = get_atom(patch_records, p_cfg["child"], patch_res, root_idx)
+        at_o1 = get_atom(patch_records, p_cfg["leaving"], patch_res, root_idx)
+
+        # Execute the geometric alignment
+        self.align_single_bond(atoms=patch_records, at1=at_cg, at2=at_nd2, at3=at_c1, at4=at_o1, target_bond_length=geom["bond_length"])
+        self.set_junction_dihedral(atoms=patch_records, p1=at_od1, p2=at_cg, p3=at_nd2, p4=at_c1, target_dih=geom["omega_target"])       
+        self.set_junction_angle(atoms=patch_records, p1=at_cg, p2=at_nd2, p3=at_c1, p_ref=at_cb, target_angle=geom["angle_target"])      
+        self.set_junction_dihedral(atoms=patch_records, p1=at_cg, p2=at_nd2, p3=at_c1, p4=at_o5, target_dih=geom["phi_target"])     
+        
+        return patch_records
 
 class MolGraph:
 

@@ -123,7 +123,7 @@ class PdbParser:
                 record_type=line[0:6].strip(),
                 serial=int(line[6:11].strip()),
                 name=line[12:16].strip(),
-                res_name=line[17:20].strip(),
+                res_name=line[16:20].strip(),
                 chain=line[21],
                 res_seq=int(line[22:26].strip()),
                 ins_code=line[26],
@@ -170,7 +170,7 @@ class PdbBuilder:
         # Col 13-16 : Atom Name    (Centered 4-char field)
         #             * "  {:<3s}" forces name to start at Col 14.
         # Col 17    : AltLoc       (Char)
-        # Col 18-20 : ResName      (e.g. "LYS")
+        # Col 18-20 : ResName      (e.g. "LYS"). NOTE THAT IN CASES OF 4 LETTER RES NAMES (e.g., BGLC), ALTLOC WILL BE REPURPOSED.
         # Col 22    : Chain        (Char)
         # Col 23-26 : ResSeq       (Integer, Right align)
         # Col 27    : InsCode      (Char)
@@ -187,12 +187,11 @@ class PdbBuilder:
             occ = getattr(atom, 'occupancy', 1.00)
             temp = getattr(atom, 'temp_factor', 0.00)
             
-            line = "{:<6s}{:>5d} {:^4s}{:1s}{:>3s} {:1s}{:>4d}{:1s}   {:8.3f}{:8.3f}{:8.3f}{:6.2f}{:6.2f}      {:<4s}\n".format(
+            line = "{:<6s}{:>5d} {:^4s}{:>4s} {:1s}{:>4d}{:1s}   {:8.3f}{:8.3f}{:8.3f}{:6.2f}{:6.2f}      {:<4s}\n".format(
                 str(atom.record_type),
                 int(atom.serial),   
                 str(atom.name),
-                " ", # AltLoc
-                str(atom.res_name),
+                str(atom.res_name)[:4], # Merged AltLoc and ResName into a single 4-character block {:>4s}. Truncates at 4 so columns never shift. 
                 str(atom.chain),
                 int(atom.res_seq),  
                 str(atom.ins_code), 

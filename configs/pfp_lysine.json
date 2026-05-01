@@ -25,6 +25,11 @@
     },
     "charge_sinks": ["HD1", "HD2", "HG1", "HG2", "H2", "H3", "H4", "H5", "H6", "H7"],
     "target_charge": 0,
+    "itp_junction": {
+        "bond_type": 1,
+        "angle_type": 5,
+        "dih_type": 9
+    },
     "rigid_backbone": ["N", "H", "HN", "CA", "HA", "C", "O", "OXT"],
     "chi_definitions": [
         ["N", "CA", "CB", "CG"],
