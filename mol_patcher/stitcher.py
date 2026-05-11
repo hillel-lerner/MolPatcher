@@ -273,7 +273,10 @@ class Stitcher:
             if itp_obj is not None:
                 old_itp_to_pdb[itp_obj.number] = record
 
-        self.base_deletions = [r for r in self.base.records if r.res_seq == self.res_id and r.name.strip() in base_del_names]
+        self.base_deletions = [r for r in self.base.records 
+                            if r.res_seq == self.res_id 
+                            and r.chain.strip() == target_reference.chain.strip() 
+                            and r.name.strip() in base_del_names]
         self.patch_deletions = [r for r in aligned_patch_atoms if r.name.strip() in patch_del_names]
         patch_overlap_anchors = [r for r in aligned_patch_atoms if r.name.strip() in patch_overlap_names]
 
@@ -293,7 +296,7 @@ class Stitcher:
         dynamic_seg_id = target_anchors[0].seg_id
 
         # Append patch atoms with their new designation
-        # Find the highest residue number currently in the target chain
+        # Find the highest residue number currently in the target chain if for new residues from the patch
         max_chain_res = max((r.res_seq for r in self.base.records if r.chain.strip() == target_reference.chain.strip()), default=target_reference.res_seq)
 
         # Append patch atoms with their new designation
@@ -340,7 +343,13 @@ class Stitcher:
         patch_dihs = [replace(d, a1=d.a1+self.offset, a2=d.a2+self.offset, a3=d.a3+self.offset, a4=d.a4+self.offset) for d in self.patch.dihs]
 
         # Splicing and ITP sync
-        insert_idx_records = next(i for i, r in enumerate(final_records) if r.serial == anchor_serial) + 1
+        if patch_merged_name:
+            insert_idx_records = next(i for i, r in enumerate(final_records) if r.serial == anchor_serial) + 1
+        else:
+            # CHANGED: Finds the max index of the TARGET RESIDUE instead of the whole chain
+            last_res_idx = max(i for i, r in enumerate(final_records) if r.res_seq == self.res_id and r.chain.strip() == target_reference.chain.strip())
+            insert_idx_records = last_res_idx + 1
+            
         final_records[insert_idx_records:insert_idx_records] = filter_patch_records
         
         # Sync base ITP residue numbers to the PDB and track old numbers
@@ -367,11 +376,21 @@ class Stitcher:
         if anch_2_itp_obj is None:
             raise ValueError(f"Error: Anchor atom {base_bridge_name} could not be found in the topology.")
 
-        insert_idx_atoms = final_atoms.index(anch_2_itp_obj) + 1
+        if patch_merged_name:
+            insert_idx_atoms = final_atoms.index(anch_2_itp_obj) + 1
+        else:
+            last_res_atom_idx = max(
+                i for i, a in enumerate(final_atoms) 
+                if old_itp_to_pdb.get(a.number) 
+                and old_itp_to_pdb[a.number].res_seq == self.res_id
+                and old_itp_to_pdb[a.number].chain.strip() == target_reference.chain.strip()
+            )
+            insert_idx_atoms = last_res_atom_idx + 1
+
         final_atoms[insert_idx_atoms:insert_idx_atoms] = filter_patch_atoms
 
         stitched_mol = Mol(self.base.name, self.base.moltype_section, final_records, final_atoms, 
-                        patch_bonds, self.base.pairs + patch_pairs, 
+                        self.base.bonds + patch_bonds, self.base.pairs + patch_pairs, 
                         self.base.angles + patch_angles, self.base.dihs + patch_dihs)
         
         # JUNCTION INTERACTIONS AND TOPOLOGY REINDEXING
@@ -385,26 +404,37 @@ class Stitcher:
 
         stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, b_type))
 
-        patch_n_idx = next(a.number for a in self.patch.atoms if a.atom.strip() == patch_merged_name.strip()) + self.offset
-
+        # Initialize the remap dictionary
         remap_dict = {}
         if patch_merged_name:
             patch_n_idx = next(a.number for a in self.patch.atoms if a.atom.strip() == patch_merged_name.strip()) + self.offset
             remap_dict = {patch_n_idx: anch_2_itp}
             
-        reindex_topology(stitched_mol, remap_dict)
-        
-        # REBUILD GRAPH AND INJECT PARAMETERS
-        stitched_map = self._build_pdb_to_itp_map(stitched_mol.records, stitched_mol.atoms, itp_chains=self.itp_chains)
-        stitched_itp_to_pdb = {}
-        for r in stitched_mol.records:
-            itp_obj = stitched_map.get(id(r))
-            if itp_obj:
-                stitched_itp_to_pdb[itp_obj.number] = r
+        # Capture pre-reindex mapping
+        pre_reindex_mapping = {}
+        for old_num, record in old_itp_to_pdb.items():
+            pre_reindex_mapping[old_num] = record
+            
+        for record, original_atom in zip(filter_patch_records, filter_patch_atoms):
+            # original_atom.number still has the 100000 offset here
+            pre_reindex_mapping[original_atom.number] = record
 
+        # REINDEX THE TOPOLOGY (Mods atom.number in place)
+        index_map = reindex_topology(stitched_mol, remap_dict)
+
+        # BUILD LOOKUP DICTIONARIES
+        stitched_itp_to_pdb = {}
+        stitched_pdb_to_itp = {}
+        
+        for old_num, record in pre_reindex_mapping.items():
+            if old_num in index_map:
+                new_num = index_map[old_num]
+                stitched_itp_to_pdb[new_num] = record
+                stitched_pdb_to_itp[id(record)] = stitched_mol.atoms[new_num - 1]
+
+        # BUILD THE GRAPH
         stitched_graph = MolGraph(stitched_mol, itp_to_pdb_map=stitched_itp_to_pdb)
 
-        # Dynamically lookup the indices using our extracted config names
         if stitched_graph.is_distance_based:
             warning_msg = "Connectivity Matrix produced with distance-based method. Some glycan bonds and/or disulfide bridges may be missing."
             print(f"WARNING: {warning_msg}")
@@ -414,28 +444,21 @@ class Stitcher:
                         if r.res_seq == self.res_id
                         and r.name.strip() == base_bridge_name.strip()
                         and r.chain.strip() == target_reference.chain.strip())
+        
+        if patch_merged_name:
+            expected_patch_res_seq = target_reference.res_seq
+        else:
+            orig_bridge_rec = next(r for r in aligned_patch_atoms if r.name.strip() == patch_bridge_name.strip())
+            expected_patch_res_seq = max_chain_res + orig_bridge_rec.res_seq
 
         patch_idx = next(i for i, r in enumerate(stitched_mol.records)
-                        if r.res_seq == target_reference.res_seq
-                        and r.name.strip() == patch_bridge_name.strip())
+                        if r.res_seq == expected_patch_res_seq
+                        and r.name.strip() == patch_bridge_name.strip()
+                        and r.chain.strip() == target_reference.chain.strip())
 
-        # Translate and preserve original base bonds
-        for old_bond in self.base.bonds:
-            record_1 = old_itp_to_pdb.get(old_bond.a1)
-            record_2 = old_itp_to_pdb.get(old_bond.a2)
-
-            if not record_1 or not record_2:
-                continue
-            if record_1 in self.base_deletions or record_2 in self.base_deletions:
-                continue
-
-            new_itp_1 = stitched_map.get(id(record_1))
-            new_itp_2 = stitched_map.get(id(record_2))
-
-            if new_itp_1 and new_itp_2:
-                stitched_mol.bonds.append(ItpBond(new_itp_1.number, new_itp_2.number, old_bond.type))
-
-        angles_to_check, dihedrals_to_check = self.build_bridge_topol(stitched_mol, stitched_graph, base_idx, patch_idx, stitched_map)
+        # GENERATE BRIDGE TOPOLOGY 
+        # (Pass stitched_pdb_to_itp to ensure the dihedral builder grabs the correct atoms)
+        angles_to_check, dihedrals_to_check = self.build_bridge_topol(stitched_mol, stitched_graph, base_idx, patch_idx, stitched_pdb_to_itp)
         print(f"Topology junction built: 1 bond, {len(angles_to_check)} angles, {len(dihedrals_to_check)} dihedrals, and {len(dihedrals_to_check)} pairs, added.")
         
         for a1, a2, a3 in angles_to_check:
@@ -452,11 +475,15 @@ class Stitcher:
 
         # ELECTROSTATICS & TYPING
         target_chg = self.config.get("target_charge", 0) 
-        
         stitched_mol = self.update_atom_types(stitched_mol, self.config.get("type_mapping", {}), stitched_itp_to_pdb, target_reference.chain)
         stitched_mol = self.balance_electrostatics(stitched_mol, stitched_itp_to_pdb, target_reference.chain, target_charge=target_chg)
 
-        return stitched_mol
+        junction_log = {
+            "bond":(index_map.get(anch_2_itp, anch_2_itp), index_map.get(patch_bridge_idx, patch_bridge_idx)),
+            "angles": angles_to_check,
+            "dihs": dihedrals_to_check
+        }
+        return stitched_mol, stitched_graph, junction_log
     
     def update_atom_types(self, stitched_mol, type_map, stitched_itp_to_pdb, target_chain):
         """Updates specific atom types at the junction exclusively on the target chain."""

@@ -27,7 +27,7 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
     target_res = junction_config["target_res_name"]
     new_res = junction_config["new_res_name"]
 
-    run_folder_name = f"patched_{target_res.lower()}_{base_resid}_PRO{base_chain.strip()}"
+    run_folder_name = f"patched_{target_res.lower()}_{base_resid}_PRO{base_chain}"
     final_outdir = os.path.join(outdir, run_folder_name)
     infiles_dir = os.path.join(final_outdir, "infiles")
     os.makedirs(infiles_dir, exist_ok=True)
@@ -44,12 +44,21 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
     patch_mol.load_itp(patch_itp)
     
     # Load Base Protein Data
+    # parser = PdbParser()
+    # headers, raw_records, t_name = parser.read_file(base_pdb) 
+    # fixed_chains = parser.fix_chain_id(raw_records)
+    # base_records = parser.fix_res_num(fixed_chains)
+
+    # base_mol = Mol(name=t_name, records=base_records, atoms=[], bonds=[], pairs=[], angles=[], dihs=[])
+
     parser = PdbParser()
     headers, raw_records, t_name = parser.read_file(base_pdb) 
-    fixed_chains = parser.fix_chain_id(raw_records)
-    base_records = parser.fix_res_num(fixed_chains)
+    base_records = parser.fix_chain_id(raw_records)
 
     base_mol = Mol(name=t_name, records=base_records, atoms=[], bonds=[], pairs=[], angles=[], dihs=[])
+
+
+
     
     safe_itp_path = TopologyParser.clean_itp_file(base_itp, final_outdir)
     base_mol.load_itp(safe_itp_path)
@@ -91,8 +100,15 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
     
 
     valid_patch_atoms = []
+    
+    is_polymer = "patch_merged_atom" not in junction_config
+    
     for r in patch_mol.records:
-        match_res = True if patch_resid is None else (r.res_seq == patch_resid)
+        if is_polymer:
+            match_res = True
+        else:
+            match_res = True if patch_resid is None else (r.res_seq == patch_resid)
+            
         match_chain = True if patch_chain == " " else (r.chain.strip() == patch_chain.strip())
         
         if match_res and match_chain:
@@ -102,6 +118,7 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
         print("Error: No patch atoms found matching the specified residue/chain.")
         return
 
+    
     patch_anchors = [
         next(r for r in valid_patch_atoms if r.name.strip() == name) 
         for name in junction_config["patch_anchors"]
@@ -118,7 +135,7 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
 
     # Execute the Stitcher
     stitcher = Stitcher(base_mol, patch_mol, target_res_id=base_resid, config=junction_config, itp_chains=itp_chains)
-    stitched_mol = stitcher.stitch_molecules(
+    stitched_mol, graph, junction_log = stitcher.stitch_molecules(
         aligned_patch_atoms=aligned_patch_atoms, 
         target_reference=target_anchors[0], 
         target_anchors=target_anchors
@@ -127,24 +144,16 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
     # --- OPTIMIZATION (ROTAMER SWEEP) ---
     # Only execute if the JSON template provides specific dihedral definitions (e.g., PFP-Lysine)
     if "chi_definitions" in junction_config:
-        graph = MolGraph(stitched_mol, distXX=1.90)
-    
-        backbone_names = junction_config.get("rigid_backbone", ['N', 'CA', 'C', 'O'])
-        moving_atoms = [a for a in stitched_mol.records 
-                        if a.res_seq == base_resid and a.name.strip() not in backbone_names]
-        static_atoms = [a for a in stitched_mol.records if a.res_seq != base_resid]
-    
+        print(f"Flexible template detected. Starting optimization for {target_res} {base_resid}...")
+        
+        moving_atoms, static_atoms = utilities.identify_optimization_clusters(stitched_mol, base_resid, chain_check, junction_config, base_records)
+        
         checker = StericChecker(graph, moving_atoms, static_atoms, tolerance=0.75)
         sweeper = RotamerSweeper(stitched_mol, graph, base_resid, junction_config, chain=chain_check)
-    
-        print(f"Starting optimization for {len(moving_atoms)} atoms...")
-        success = sweeper.run_sweep(checker)
-    
-        if not success:
-            print(f"Error: Could not find a clash-free conformation for residue {base_resid}. Exiting.")
-            return
+        
+        if not sweeper.run_sweep(checker):
+            print(f"Warning: Could not find a clash-free conformation for residue {base_resid}. Saving best-fit.")
     else:
-        # For glycans, bypass the sweep to preserve the specified linkage geometry
         print("Rigid template alignment detected. Bypassing rotamer optimization.")
 
     # Save outputs
@@ -176,18 +185,33 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
     print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
 
-    log_file_path = os.path.join(final_outdir, "patcher.log")
+    log_file_path = os.path.join(final_outdir, f"patched_{target_res.lower()}_{base_resid}.log")
     with open(log_file_path, "w") as log:
         log.write(f"========== MOLPATCHER EXECUTION LOG ==========\n")
         log.write(f"Target : {target_res} {base_resid} (Chain {chain_check})\n")
         log.write(f"Patch  : {os.path.basename(patch_pdb)}\n")
         log.write(f"==============================================\n\n")
+
+        log.write(f"--- FILE I/O ---\n")
+        log.write(f"INFILES:\n  Base:  {base_pdb} & {base_itp}\n  Patch: {patch_pdb} & {patch_itp}\n")
+        log.write(f"OUTFILES:\n  PDB:   {pdb_outfile}\n  ITP:   {itp_outfile}\n\n")
+
+        log.write(f"--- JUNCTION TOPOLOGY ---\n")
+        log.write(f"Bond Created: {junction_log['bond'][0]} - {junction_log['bond'][1]}\n")
         
+        log.write(f"Angles Created ({len(junction_log['angles'])}):\n")
+        for a1, a2, a3 in junction_log['angles']:
+            log.write(f"  {a1} - {a2} - {a3}\n")
+            
+        log.write(f"Dihedrals Created ({len(junction_log['dihs'])}):\n")
+        for d1, d2, d3, d4 in junction_log['dihs']:
+            log.write(f"  {d1} - {d2} - {d3} - {d4}\n")
+        log.write("\n")
+
         log.write("--- GROMACS TOPOLOGY INSTRUCTIONS ---\n")
         log.write("1. Add the following to your master .top file (after the forcefield #includes):\n")
         log.write(f"   #include \"{os.path.basename(itp_outfile)}\"\n\n")
         log.write("2. Add the following to the [ molecules ] directive at the bottom of your .top file:\n")
-        # GROMACS uses the specific moltype name from the [ moleculetype ] section
         log.write(f"   {stitched_mol.name:<15} 1\n\n")
         
         log.write("--- PERIODIC BOUNDARY CONDITIONS (PBC) ---\n")
@@ -196,8 +220,14 @@ def run_patch(patch_pdb, patch_itp, base_pdb, base_itp, patch_resid, base_resid,
         log.write(f"Optimal Cubic Box     : {box_size} nm\n\n")
         
         log.write("--- APPLIED CONFIGURATION ---\n")
-        # Dumps the dictionary back into a formatted JSON string
-        log.write(json.dumps(junction_config, indent=4))
+        log.write(f"Residue Mutation : {junction_config.get('target_res_name')} -> {junction_config.get('new_res_name')}\n")
+        log.write(f"Anchors Used     : Base ({junction_config.get('base_bridge')}), Patch ({junction_config.get('patch_bridge')})\n")
+        
+        if "geometry" in junction_config:
+            geom = junction_config["geometry"]
+            log.write(f"Preset Geometry  : Bond={geom.get('bond_length')}Å, Angle={geom.get('angle_target')}°, Omega={geom.get('omega_target')}°, Phi={geom.get('phi_target')}°\n")
+        else:
+            log.write("Preset Geometry  : None (Flexible alignment used)\n")
         log.write("\n")
 
     print(f"   --> Wrote execution log to: {log_file_path}")
@@ -223,7 +253,7 @@ def main():
     parser.add_argument("-config", "--config", required=True, help="Path to JSON configuration file")
     parser.add_argument("-base", nargs=4, metavar=('PDB', 'ITP', 'RES', 'CHAIN'), required=True, 
                         help="Base protein: [PDB] [ITP] [Residue ID] [Chain]")
-    parser.add_argument("-patch", nargs='+', metavar=('PDB', 'ITP', '[RES]', '[CHAIN]'), required=True, 
+    parser.add_argument("-patch", nargs='+', metavar='ARG', required=True, 
                         help="Patch molecule: [PDB] [ITP] [Optional Res ID] [Optional Chain]")
     parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
     parser.add_argument("-ff", "--ff", action="store_true", help="Copy master forcefield")
@@ -271,7 +301,7 @@ def main():
         patch_chain=patch_chain, 
         base_chain=base_chain, 
         outdir=args.outdir, 
-        itp_chains=[],
+        itp_chains=[base_chain.strip()] if base_chain.strip() else [],
         config_file=config_basename, 
         junction_config=junction_config, 
         copy_ff=args.ff

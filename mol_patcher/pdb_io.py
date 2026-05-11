@@ -123,7 +123,7 @@ class PdbParser:
                 record_type=line[0:6].strip(),
                 serial=int(line[6:11].strip()),
                 name=line[12:16].strip(),
-                res_name=line[16:20].strip(),
+                res_name=line[17:21].strip(), 
                 chain=line[21],
                 res_seq=int(line[22:26].strip()),
                 ins_code=line[26],

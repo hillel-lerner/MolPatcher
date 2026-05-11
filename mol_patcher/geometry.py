@@ -56,6 +56,72 @@ def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
             
         return final_pos
 
+
+def align_centroids(mol_1, mol_2):
+    """
+    Calculates the geometric centroid of two atom lists and aligns them.
+    """
+
+    mol_1_coords = np.array([[a.x, a.y, a.z] for a in mol_1])
+    mol_2_coords = np.array([[a.x, a.y, a.z] for a in mol_2])
+
+
+    mol_1_centroid = np.mean(mol_1_coords, axis=0)
+    mol_2_centroid = np.mean(mol_2_coords, axis=0)
+
+    translation_vector = mol_1_centroid - mol_2_centroid
+
+    for atom in mol_2:
+        atom.x += translation_vector[0]
+        atom.y += translation_vector[1]
+        atom.z += translation_vector[2]
+
+    return mol_2
+
+
+def translate_along_vector(atoms, start_coord, end_coord, distance=1.5):
+    """
+    Pushes a list of atoms a specific distance along a defined directional vector.
+    """
+    direction_vec = np.array(end_coord) - np.array(start_coord)
+    vec_norm = np.linalg.norm(direction_vec)
+    
+    if vec_norm == 0:
+        raise ValueError("Start and end coordinates are identical.")
+        
+    # Normalize vector to length 1, multiply by target distance (1.5 Å)
+    normalized_vec = direction_vec / vec_norm
+    translation = normalized_vec * distance
+    
+    for atom in atoms:
+        atom.x += translation[0]
+        atom.y += translation[1]
+        atom.z += translation[2]
+        
+    return atoms
+
+def rotate_around_pivot(atoms, pivot_coord, axis_vec, angle_degrees):
+    """
+    Rotates a list of atoms around a specific pivot point in 3D space.
+    - If pivot_coord is the glycan centroid, the SCR orbits the glycan.
+    - If pivot_coord is the SCR centroid, the SCR spins in place.
+    """
+    # Normalize the axis of rotation (e.g., [1, 0, 0] for the X-axis)
+    axis_arr = np.array(axis_vec)
+    axis_norm = axis_arr / np.linalg.norm(axis_arr)
+    
+    # Create the rotation object using the standard scipy Rotation matrix
+    rot_obj = Rotation.from_rotvec(axis_norm * np.radians(angle_degrees))
+    pivot = np.array(pivot_coord)
+    
+    # Apply the rotation by entering on the pivot, rotating, and translating back
+    for atom in atoms:
+        pos = np.array([atom.x, atom.y, atom.z])
+        final_pos = rot_obj.apply(pos - pivot) + pivot
+        atom.x, atom.y, atom.z = final_pos
+        
+    return atoms
+
 class PatchAligner:
 
     """
@@ -149,10 +215,10 @@ class PatchAligner:
         """
         Spins the patch molecule around the new junction bond to match a specific dihedral angle.
 
-        :param p1: (tuple/list) Base parent atom (e.g., Aspargine CA)
+        :param p1: (tuple/list) Base primary atom (e.g., Aspargine CA)
         :param p2: (tuple/list) Base anchor atom (e.g., Aspargine N) - Axis of rotation
         :param p3: (tuple/list) Patch anchor atom (e.g., Glycan C1) - Pivot for rotation
-        :param p4: (tuple/list) Patch child atom (e.g., Glycan Ring O)
+        :param p4: (tuple/list) Patch secondary atom (e.g., Glycan Ring O)
         :return: (numpy.ndarray) The final transformed coordinate array.
         """
         
@@ -172,7 +238,7 @@ class PatchAligner:
         Bends the bond angle of a junction using a reference atom to define the bending plane.
 
         :param atoms: (list) PdbRecord objects to be rotated (the patch).
-        :param p1: (PdbRecord) Base parent atom (e.g., C6)
+        :param p1: (PdbRecord) Base primary atom (e.g., C6)
         :param p2: (PdbRecord) Base anchor atom / The Vertex (e.g., O6)
         :param p3: (PdbRecord) Patch anchor atom (e.g., Galactose C1)
         :param p_ref: (PdbRecord) Reference atom to define the plane (e.g., C5)
@@ -237,23 +303,25 @@ class PatchAligner:
         root_idx = min(r.res_seq for r in patch_records)
         
         # Configs
-        b_cfg = template["anchors"]["base"]
-        p_cfg = template["anchors"]["patch"]
+        b_config = template["anchors"]["base"]
+        p_config = template["anchors"]["patch"]
         geom = template["geometry"]
-        base_res = base_res_idx.res
-        patch_res = patch_records.res
+        base_res = b_config["res_name"]
+        patch_res = p_config["res_name"]
 
         def get_atom(recs, name, res, seq):
-            return next((r for r in recs if r.name.strip() == name and r.res_name == res and r.res_seq == seq), None)
+            return next((r for r in recs if r.name.strip() == name and r.res_name.strip() == res and r.res_seq == seq), None)
 
-        at_cg = get_atom(base_records, b_cfg["parent"], base_res, base_res_idx)
-        at_nd2 = get_atom(base_records, b_cfg["anchor"], base_res, base_res_idx)
-        at_cb = get_atom(base_records, b_cfg["ref"], base_res, base_res_idx)
-        at_od1 = get_atom(base_records, b_cfg["carbonyl"], base_res, base_res_idx)
+        at_cg = get_atom(base_records, b_config["primary"], base_res, base_res_idx)
+        at_nd2 = get_atom(base_records, b_config["anchor"], base_res, base_res_idx)
+        at_cb = get_atom(base_records, b_config["ref"], base_res, base_res_idx)
+        at_od1 = get_atom(base_records, b_config["carbonyl"], base_res, base_res_idx)
 
-        at_c1 = get_atom(patch_records, p_cfg["anchor"], patch_res, root_idx)
-        at_o5 = get_atom(patch_records, p_cfg["child"], patch_res, root_idx)
-        at_o1 = get_atom(patch_records, p_cfg["leaving"], patch_res, root_idx)
+        at_c1 = get_atom(patch_records, p_config["anchor"], patch_res, root_idx)
+        at_o5 = get_atom(patch_records, p_config["secondary"], patch_res, root_idx)
+        at_o1 = get_atom(patch_records, p_config["leaving"], patch_res, root_idx)
+
+        print(f"DEBUG: Patch parsed as -> ResName: '{patch_records[0].res_name}', Seq: {patch_records[0].res_seq}")
 
         # Execute the geometric alignment
         self.align_single_bond(atoms=patch_records, at1=at_cg, at2=at_nd2, at3=at_c1, at4=at_o1, target_bond_length=geom["bond_length"])
@@ -455,9 +523,7 @@ class StericChecker:
         
         # Filter out atoms that do not move during sidechain sweeps.
         # This prevents permanent unresolvable native clashes from paralyzing the script.
-        rigid_base_atoms = {'N', 'HN', 'H', 'CA', 'HA', 'C', 'O', 'CB', 'HB', 'HB1', 'HB2', 'HB3'}
-        self.moving_atoms = [a for a in moving_atoms if a.name.strip() not in rigid_base_atoms]
-        
+        self.moving_atoms = moving_atoms
         self.static_atoms = static_atoms
         self.tolerance = tolerance
 
@@ -496,18 +562,19 @@ class StericChecker:
         # If no list provided, check all known moving atoms defined during init
         check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
 
-        for m_atom in check_list:
-            if m_atom.name.strip() in {'N', 'H', 'CA', 'HA', 'C', 'O', 'CB'}:
-                continue
+        # Create a complete environment list that includes static atoms + any sidechain atoms that are currently stationary
+        environment_atoms = self.static_atoms.copy()
+        if limit_to_atoms is not None:
+            environment_atoms.extend([a for a in self.moving_atoms if a not in limit_to_atoms])
 
+        for m_atom in check_list:
             m_element = m_atom.name.strip()[0]
             m_vdw = self.vdw_radii.get(m_element, 1.50)
 
-            for s_atom in self.static_atoms:
-                if (m_atom.serial, s_atom.serial) in self.excluded_pairs:
-                    continue
-                if s_atom.name.strip().startswith('H'):
-                    continue
+            for s_atom in environment_atoms:
+                if m_atom.serial == s_atom.serial: continue
+                if (m_atom.serial, s_atom.serial) in self.excluded_pairs: continue
+                if s_atom.name.strip().startswith('H'): continue
 
                 s_element = s_atom.name.strip()[0]
                 s_vdw = self.vdw_radii.get(s_element, 1.50)
@@ -519,16 +586,35 @@ class StericChecker:
 
                 threshold = (m_vdw + s_vdw) * self.tolerance
                 if actual_dist < threshold:
-                    return f"CLASH: {m_atom.name:<4} hit {s_atom.name:<4} ({s_atom.res_seq:<3}) | Dist: {actual_dist:.2f} Å"
-                    
-        return None # No clash
+                    msg = f"CLASH: {m_atom.name:<4} hit {s_atom.name:<4} ({s_atom.res_seq:<3}) | Dist: {actual_dist:.2f} Å"
+                    return actual_dist, msg
+                
+            for m_atom_2 in check_list:
+                if m_atom.serial == m_atom_2.serial: continue
+                if (m_atom.serial, m_atom_2.serial) in self.excluded_pairs: continue
+                if m_atom_2.name.strip().startswith('H'):  continue
+                
+                m2_element = m_atom_2.name.strip()
+                m2_vdw= self.vdw_radii.get(m2_element, 1.50)
+
+                actual_dist = get_distance(
+                    (m_atom.x, m_atom.y, m_atom.z), 
+                    (m_atom_2.x, m_atom_2.y, m_atom_2.z)
+                )
+
+                threshold = (m_vdw + m2_vdw) * self.tolerance
+                if actual_dist < threshold:
+                    msg = f"CLASH: {m_atom.name:<4} hit {m_atom_2.name:<4} ({m_atom_2.res_seq:<3}) | Dist: {actual_dist:.2f} Å"
+                    return actual_dist, msg
+                
+        return None, None # No clash
     
 
 class RotamerSweeper:
 
     """
-    Generates and tests possible geometries at the patched lysine in order to resolve steric clashes.
-    Sweeps through known lysine rotamers and rotates the patch around the junction where it attaches to the lysine.
+    Generates and tests possible geometries at the patched residue in order to resolve steric clashes.
+    Sweeps through known residue rotamers and rotates the patch around the junction where it attaches to the residue.
     """
 
     def __init__(self, mol, mol_graph, res_seq, config, chain=" "):
@@ -537,10 +623,10 @@ class RotamerSweeper:
         self.res_seq = res_seq
         self.chain = chain.strip()
         self.config = config
-
         self.chi_definitions = self.config.get("chi_definitions", [])
-        
         self.obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
+        self.base_bridge = self.config.get("base_bridge")
+        self.patch_bridge = self.config.get("patch_bridge")
 
     def run_sweep(self, steric_checker):
         
@@ -583,16 +669,16 @@ class RotamerSweeper:
         print(f"\rTier 1 Progress... Done.{' ' * 60}")
         
         # --- Tier 2: Chi4 Systematic Wiggle ---
-        # Pivot is CG-CD. Only CD onwards moves.
+        # Pivot is CG-CD. Only CD onwards moves for PFP-Lysine
         print("Tier 2: Canonical rotations failed. Attempting systematic chi4 sweep...")
-        t2_names = self.chi_definitions[3] # CG-CD-CE-NZ
+        t2_names = self.chi_definitions[-1]
         t2_pivot = self.obj_to_idx[id(self.get_atom_by_name(t2_names[1]))] # CG
         t2_axis = self.obj_to_idx[id(self.get_atom_by_name(t2_names[2]))]  # CD
         t2_moving = [self.mol.records[idx] for idx in self.get_downstream_atoms(t2_pivot, t2_axis)]
 
         # Get current state of the first 3 chi angles to keep them steady
         current_pose = []
-        for j in range(3):
+        for j in range(len(self.chi_definitions) - 1):
             names = self.chi_definitions[j]
             coords = [self.get_atom_by_name(n) for n in names]
             current_pose.append(get_dihedral(*[[a.x, a.y, a.z] for a in coords]))
@@ -613,7 +699,7 @@ class RotamerSweeper:
         print(f"\rTier 2 Progress... Done.{' ' * 60}")
 
         # --- Tier 3: NZ-C7 Patch Twist ---
-        print("Tier 3: Lysine stuck. Rotating patch molecule (NZ-C7)...")
+        print(f"Tier 3: {self.config['target_res_name']} crowded. Rotating patch ({self.base_bridge}-{self.patch_bridge})...")
         return self.attempt_patch_twist(steric_checker)
 
     def apply_pose(self, chi_angles):
@@ -643,13 +729,23 @@ class RotamerSweeper:
         patch_bridge_name = self.config["patch_bridge"]
 
         base_atom = self.get_atom_by_name(base_bridge_name)
-        patch_atom = self.get_atom_by_name(patch_bridge_name) 
-        
         pivot_idx = self.obj_to_idx[id(base_atom)]
-        axis_idx = self.obj_to_idx[id(patch_atom)]
         
+        patch_atom = None
+        for n_idx in self.graph.nx_graph.neighbors(pivot_idx):
+            if self.mol.records[n_idx].name.strip() == patch_bridge_name.strip():
+                patch_atom = self.mol.records[n_idx]
+                axis_idx = n_idx
+                break
+                
+        if not patch_atom:
+            print(f"Error: Could not find patch bridge '{patch_bridge_name}' bonded to '{base_bridge_name}'.")
+            return False
+
         moving_indices_t3 = self.get_downstream_atoms(pivot_idx, axis_idx)
         moving_records_t3 = [self.mol.records[idx] for idx in moving_indices_t3]
+
+        junction_records = [a for a in moving_records_t3 if a.res_seq == patch_atom.res_seq]
 
         spinner = ['|', '/', '-', '\\']
         angles_t3 = list(range(0, 360, 2))
@@ -659,15 +755,15 @@ class RotamerSweeper:
             print(f"\rTier 3 Progress... {char}", end='', flush=True)
 
             rotate_dihedral(moving_records_t3, (base_atom.x, base_atom.y, base_atom.z), (patch_atom.x, patch_atom.y, patch_atom.z), 2)
-            clash_info = steric_checker.check_clashes(limit_to_atoms=moving_records_t3)
-            
-            if not clash_info:
-                print(f"\rTier 3 Progress... Done. Success!{' ' * 50}")
+            dist, clash_info = steric_checker.check_clashes(limit_to_atoms=junction_records)
+
+            if dist is None:
+                print(f"\rTier 3 Progress... Done. Junction is clean!{' ' * 40}")
                 return True
             else:
                 print(f"\rTier 3 Progress... {char} | {clash_info}{' ' * 10}", end='', flush=True)
 
-        print(f"\rTier 3 Progress... Done.{' ' * 60}")
+        print(f"\nTier 3: Could not find a completely clean junction pose.")
         return False
 
     def get_atom_by_name(self, name):
@@ -683,21 +779,21 @@ class RotamerSweeper:
 
     def get_downstream_atoms(self, pivot_idx, axis_idx):
         """Uses graph connectivity to identify the side-chain segment to be moved."""
-        temp_mol_graph = self.graph.copy()
-        temp_nx_graph = temp_mol_graph.nx_graph
+        temp_nx_graph = self.graph.nx_graph.copy()
 
         if temp_nx_graph.has_edge(pivot_idx, axis_idx):
             temp_nx_graph.remove_edge(pivot_idx, axis_idx)
         else:
-            # If the edge is missing, we can't define downstream.
-            p_rec = self.mol.records[pivot_idx]
-            a_rec = self.mol.records[axis_idx]
-            dist = get_distance((p_rec.x, p_rec.y, p_rec.z), (a_rec.x, a_rec.y, a_rec.z))
-            print(f"WARNING: Bond {pivot_idx}-{axis_idx} not found in graph. Dist: {dist:.3f}")
             return []
 
         # Find the component containing the axis atom
         downstream_indices = list(nx.node_connected_component(temp_nx_graph, axis_idx))
-        moving_atoms = [f"{self.mol.records[i].res_name}{self.mol.records[i].res_seq}-{self.mol.records[i].name.strip()}" for i in downstream_indices]
         
+        if len(downstream_indices) > 500:
+            p_rec = self.mol.records[pivot_idx]
+            a_rec = self.mol.records[axis_idx]
+            raise RuntimeError(f"WARNING: Rotation at {p_rec.name}-{a_rec.name} "
+                            f"attempted to move {len(downstream_indices)} atoms! "
+                            "Check your graph for cycles or distance-based bonds.")
+    
         return downstream_indices

@@ -85,3 +85,22 @@ def get_dihedral(p1, p2, p3, p4):
 
     # Return the angle in degrees
     return np.degrees(np.arctan2(y, x))
+
+def identify_optimization_clusters(stitched_mol, base_resid, chain_id, config, base_records):
+    """Isolates moving vs static atoms for the StericChecker."""
+    backbone_names = config.get("rigid_backbone", ['N', 'CA', 'C', 'O'])
+    is_polymer = "patch_merged_atom" not in config
+    
+    patch_res_seqs = set()
+    if is_polymer:
+        # Find where the patch starts in the sequence
+        max_base_res = max((r.res_seq for r in base_records if r.chain.strip() == chain_id.strip()), default=base_resid)
+        patch_res_seqs = set(r.res_seq for r in stitched_mol.records 
+                            if r.chain.strip() == chain_id.strip() and r.res_seq > max_base_res)
+
+    moving_atoms = [a for a in stitched_mol.records 
+                    if (a.res_seq == base_resid and a.name.strip() not in backbone_names) 
+                    or (a.res_seq in patch_res_seqs)]
+    static_atoms = [a for a in stitched_mol.records if a not in moving_atoms]
+    
+    return moving_atoms, static_atoms

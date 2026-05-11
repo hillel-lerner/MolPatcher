@@ -9,11 +9,15 @@ if project_root not in sys.path:
 from mol_patcher.pdb_io import PdbParser, PdbBuilder 
 
 pdb_dir = os.path.join(project_root, 'pdbs')
-test_pdb = os.path.join(pdb_dir, "PRO_B_C.pdb")
-output_pdb = os.path.join(pdb_dir, "PROBC_fixed.pdb")
+test_pdb = os.path.join(pdb_dir, "nipah.pdb")
+output_pdb = os.path.join(pdb_dir, "nipah_fixed.pdb")
+
 
 parser = PdbParser()
-header_lines, final_atoms, file_name = parser.read_file(test_pdb)
+headers, raw_records, t_name = parser.read_file(test_pdb) 
+final_atoms = parser.fix_chain_id(raw_records)
 
-builder = PdbBuilder(output_pdb, final_atoms, headers=header_lines)
+
+
+builder = PdbBuilder(output_pdb, final_atoms, headers=headers)
 builder.write_pdb()
