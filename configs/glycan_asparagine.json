@@ -36,5 +36,17 @@
         "angle_target": 120.0,
         "omega_target": 180.0,
         "phi_target": -120.0
-    }
+    },
+    "chi_definitions": [
+        ["N", "CA", "CB", "CG"],
+        ["CA", "CB", "CG", "OD1"]
+    ],
+    "canonical_rotamers": [
+        [-60, -60],
+        [-60, 60],
+        [180, -60],
+        [180, 60],
+        [60, -60],
+        [60, 60]
+    ]
 }
