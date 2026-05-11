@@ -91,7 +91,8 @@ class Stitcher:
                         h_to_delete.append(neighbor_record)
         return h_to_delete
     
-    def _build_pdb_to_itp_map(self, records, atoms, itp_chains=None):
+    @staticmethod
+    def _build_pdb_to_itp_map(records, atoms, itp_chains=None):
         """
         Creates a dictionary mapping the Python id() of a PdbRecord
         to its corresponding ItpAtom object. Filters PDB records to 
