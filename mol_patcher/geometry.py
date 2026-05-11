@@ -163,6 +163,10 @@ class PatchAligner:
         self.translation_vector = target_centroid - rotated_patch_centroid
 
     def implement_align(self):
+
+        if self.rotation_object is None or self.translation_vector is None:
+            return self.patch_atoms
+        
         coords = np.array([[a.x, a.y, a.z] for a in self.patch_atoms])
         rotated_coords = self.rotation_object.apply(coords)
         final_coords = rotated_coords + self.translation_vector
@@ -797,3 +801,185 @@ class RotamerSweeper:
                             "Check your graph for cycles or distance-based bonds.")
     
         return downstream_indices
+    
+class GlycanSweeper:
+
+    """
+    Identifies glycosidic linkages and rotates them into their lowest-energy basins to resolve clashes.
+    """
+    def __init__(self, mol, graph, config, library_path):
+        self.mol = mol
+        self.graph = graph.nx_graph
+        self.library = self._load_library(library_path)
+        self.linkages = []
+        self.config = config
+
+    def _load_library(self, path):
+        try:
+            with open(path, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            print(f"Warning: Glycan library not found at {path}. Branch sweeping disabled.")
+            return {}
+        
+    def find_linkages(self, patch_chain):
+
+        """
+        Scans the molecule for glycosidic bonds.
+        Looks for the pattern: [C1] -- [O] -- [CX]
+        """
+
+        for node in self.graph.nodes():
+            atom = self.mol.records[node]
+
+            if atom.chain.strip() != patch_chain.strip():
+                continue
+
+            if atom.name.strip() == "C1":
+                print(f"PING: Found C1 at node {node}")
+                c1_idx = node
+                c1_coords = (atom.x, atom.y, atom.z)
+
+                o5_coords = None
+                c2_coords = None
+                bridge_o_idx = None
+                bridge_o_coords = None
+
+                for n_idx in self.graph.neighbors(c1_idx):
+
+                    n_atom = self.mol.records[n_idx]
+                    n_coords = (n_atom.x, n_atom.y, n_atom.z)
+
+                    if n_atom.name.strip() == "C2":
+                        c2_idx = n_idx
+                        c2_coords = n_coords
+
+                    elif n_atom.name.strip() == "O5":
+                        o5_idx = n_idx
+                        o5_coords = (n_atom.x, n_atom.y, n_atom.z)
+
+                    elif n_atom.name.strip().startswith("O") and n_atom.name.strip() != "O5":
+                        bridge_o_idx = n_idx
+                        bridge_o_coords = n_coords
+
+                if bridge_o_idx is not None:
+                            
+                            print(f"PING: Found Bridge O at node {bridge_o_idx}")
+                            cx_idx = None
+                            linkage_num = None
+
+                            for nn_idx in self.graph.neighbors(bridge_o_idx):
+                                nn_atom = self.mol.records[nn_idx]
+
+                                if nn_atom.name.strip().startswith("C") and nn_idx != c1_idx:
+                                    cx_idx = nn_idx
+                                    linkage_num = nn_atom.name.strip()[1:] 
+                                    break 
+
+                            if cx_idx is not None and linkage_num and linkage_num.isdigit() and c2_coords and o5_coords:
+
+                                dihedral = get_dihedral(o5_coords, c1_coords, c2_coords, bridge_o_coords)
+                                anomer = "a" if dihedral > 0 else "b"
+                                
+                                print(f"SUCCESS: Linkage C1-O-C{linkage_num} | Dihedral: {dihedral:.2f} | Anomer: {anomer}")
+                                
+                                cx_atom = self.mol.records[cx_idx]
+                                ref_num = int(linkage_num) - 1
+                                ref_name = f"C{ref_num}"
+                                cx_ref_idx = None
+                                
+                                # Search for reference carbon in the same residue
+                                for i, r in enumerate(self.mol.records):
+                                    if r.res_seq == cx_atom.res_seq and r.chain == cx_atom.chain and r.name.strip() == ref_name:
+                                        cx_ref_idx = i
+                                        break
+                                
+                                if cx_ref_idx is None:
+                                    print(f"Warning: Could not find reference atom {ref_name} for C{linkage_num} linkage. Skipping.")
+                                    continue
+                                
+                                link_type = f"{anomer}1{linkage_num}" # e.g., "b14" or "a13"
+                                
+                                self.linkages.append({
+                                    "type": link_type,
+                                    "c1_idx": c1_idx,
+                                    "o_idx": bridge_o_idx,
+                                    "cx_idx": cx_idx,
+                                    "o5_idx": o5_idx,
+                                    "cx_ref_idx": cx_ref_idx
+                                })
+
+                            else:
+                                print(f"FAILED: Found Bridge O({bridge_o_idx}), but missing: " + 
+                                    (f"CX " if cx_idx is None else "") +
+                                    (f"C2_coords " if c2_coords is None else "") +
+                                    (f"O5_coords" if o5_coords is None else ""))
+                                
+    def get_downstream_atoms(self, pivot_idx, axis_idx):
+        
+        """
+        Uses graph connectivity to identify the branch segment to be moved.
+        (Copied from RotamerSweeper)
+        """
+
+        temp_nx_graph = self.graph.copy()
+        if temp_nx_graph.has_edge(pivot_idx, axis_idx):
+            temp_nx_graph.remove_edge(pivot_idx, axis_idx)
+        else:
+            return []
+        
+        downstream_indices = list(nx.node_connected_component(temp_nx_graph, axis_idx))
+        return downstream_indices
+    
+    def run_sweep(self, steric_checker):
+        """
+        Iterates through known glycosidic linkages and tests pre-defined dihedral basins.
+        """
+
+        for linkage in self.linkages:
+
+            link_type = linkage["type"]
+            c1_idx = linkage["c1_idx"]
+            o_idx = linkage["o_idx"]
+            cx_idx = linkage["cx_idx"]
+            o5_idx = linkage["o5_idx"]
+            cx_ref_idx = linkage["cx_ref_idx"]
+
+
+            basins = self.library.get(link_type, [])
+            if not basins:
+                print(f"Warning: No library basins found for {link_type}")
+                continue
+
+            downstream_phi = self.get_downstream_atoms(c1_idx, o_idx)
+            downstream_psi = self.get_downstream_atoms(o_idx, cx_idx)
+
+            for basin in basins:
+                target_phi = basin["phi"]
+                target_psi = basin["psi"]
+
+                c1_coords = [self.mol.records[c1_idx].x, self.mol.records[c1_idx].y, self.mol.records[c1_idx].z]
+                o_coords = [self.mol.records[o_idx].x, self.mol.records[o_idx].y, self.mol.records[o_idx].z]
+                cx_coords = [self.mol.records[cx_idx].x, self.mol.records[cx_idx].y, self.mol.records[cx_idx].z]
+                o5_coords = [self.mol.records[o5_idx].x, self.mol.records[o5_idx].y, self.mol.records[o5_idx].z]
+                cx_ref_coords = [self.mol.records[cx_ref_idx].x, self.mol.records[cx_ref_idx].y, self.mol.records[cx_ref_idx].z]
+
+                current_phi = get_dihedral(o5_coords, c1_coords, o_coords, cx_coords)
+                current_psi = get_dihedral(c1_coords, o_coords, cx_coords, cx_ref_coords)
+
+                delta_phi = target_phi - current_phi
+                delta_psi = target_psi - current_psi
+
+                # Phi rotation: Pivot is C1, Axis is Bridge O. Moves everything downstream of C1-O bond.
+                rotate_dihedral([self.mol.records[i] for i in downstream_phi], c1_coords, o_coords, delta_phi)
+                
+                # Psi rotation: Pivot is Bridge O, Axis is CX. Moves everything downstream of O-CX bond.
+                rotate_dihedral([self.mol.records[i] for i in downstream_psi], o_coords, cx_coords, delta_psi)
+                
+                # Check for clashes -> combine both downstream lists to check everything that just moved
+                moving_records = [self.mol.records[i] for i in downstream_phi + downstream_psi]
+                dist, msg = steric_checker.check_clashes(limit_to_atoms=moving_records)
+                
+                if msg is None:
+                    print(f"Success: Settled in basin Phi:{target_phi}, Psi:{target_psi}")
+                    break
