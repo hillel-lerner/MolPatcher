@@ -23,7 +23,7 @@ if __name__ == "__main__":
     glycan_pdb = os.path.join(pdb_dir, "m9.pdb")
     glycan_itp = os.path.join(itp_dir, "CARB-m9.itp")
     config = "glycan_asparagine.json"
-    library_path = os.path.join("configs", "glycosidic_angles.json" )
+    glycan_library_path = os.path.join(project_root, 'configs', 'dummy_angles.json')
 
     parser = PdbParser()
     headers, records, mol_name = parser.read_file(glycan_pdb)
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     graph = MolGraph(mol, itp_to_pdb_map=itp_to_pdb_map)
     
     
-    sweeper = GlycanSweeper(mol, graph, config, library_path)
+    sweeper = GlycanSweeper(mol, graph, config, glycan_library_path)
     
     sweeper.find_linkages(patch_chain=" ")
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     
     checker = StericChecker(graph, moving_atoms, static_atoms, tolerance=0.75)
     
-    # 2. Execute the sweep
+    # Execute the sweep
     print("\nStarting Glycosidic Sweep...")
     sweeper.run_sweep(checker)
     

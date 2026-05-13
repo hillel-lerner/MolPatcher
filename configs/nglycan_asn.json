@@ -39,7 +39,7 @@
     },
     "chi_definitions": [
         ["N", "CA", "CB", "CG"],
-        ["CA", "CB", "CG", "OD1"]
+        ["CA", "CB", "CG", "ND2"]
     ],
     "canonical_rotamers": [
         [-60, -60],
