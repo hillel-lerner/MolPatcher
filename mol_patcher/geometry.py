@@ -558,6 +558,11 @@ class StericChecker:
                 if s_idx in close_neighbors:
                     self.excluded_pairs.add((m_atom.serial, s_atom.serial))
 
+            for m_atom_2 in self.moving_atoms:
+                m2_idx = self.atom_to_idx[m_atom_2.serial]
+                if m2_idx in close_neighbors:
+                    self.excluded_pairs.add((m_atom.serial, m_atom_2.serial))
+
     def check_clashes(self, limit_to_atoms=None):
         """
         Evaluates distances between moving and static atoms.
@@ -886,27 +891,36 @@ class GlycanSweeper:
                                 cx_atom = self.mol.records[cx_idx]
                                 ref_num = int(linkage_num) - 1
                                 ref_name = f"C{ref_num}"
-                                cx_ref_idx = None
+                                cx1_idx = None
                                 
                                 # Search for reference carbon in the same residue
                                 for i, r in enumerate(self.mol.records):
                                     if r.res_seq == cx_atom.res_seq and r.chain == cx_atom.chain and r.name.strip() == ref_name:
-                                        cx_ref_idx = i
+                                        cx1_idx = i
                                         break
                                 
-                                if cx_ref_idx is None:
+                                if cx1_idx is None:
                                     print(f"Warning: Could not find reference atom {ref_name} for C{linkage_num} linkage. Skipping.")
                                     continue
                                 
-                                link_type = f"{anomer}1{linkage_num}" # e.g., "b14" or "a13"
+                                c4_idx = None
+                                if linkage_num == "6":
+                                    for i, r in enumerate(self.mol.records):
+                                        if r.res_seq == cx_atom.res_seq and r.chain == cx_atom.chain and r.name.strip() == "C4":
+                                            c4_idx = i
+                                            break
+                                
+                                link_type = f"{anomer}1{linkage_num}" # e.g., "b14" or "a16"
                                 
                                 self.linkages.append({
                                     "type": link_type,
                                     "c1_idx": c1_idx,
-                                    "o_idx": bridge_o_idx,
+                                    "ox_idx": bridge_o_idx, 
                                     "cx_idx": cx_idx,
                                     "o5_idx": o5_idx,
-                                    "cx_ref_idx": cx_ref_idx
+                                    "cx1_idx": cx1_idx,
+                                    "c2_idx": c2_idx,      
+                                    "c4_idx": c4_idx       
                                 })
 
                             else:
@@ -940,46 +954,66 @@ class GlycanSweeper:
 
             link_type = linkage["type"]
             c1_idx = linkage["c1_idx"]
-            o_idx = linkage["o_idx"]
+            ox_idx = linkage["ox_idx"]
             cx_idx = linkage["cx_idx"]
-            o5_idx = linkage["o5_idx"]
-            cx_ref_idx = linkage["cx_ref_idx"]
-
+            cx1_idx = linkage["cx1_idx"]
+            c2_idx = linkage["c2_idx"]
+            c4_idx = linkage["c4_idx"]
 
             basins = self.library.get(link_type, [])
             if not basins:
                 print(f"Warning: No library basins found for {link_type}")
                 continue
 
-            downstream_phi = self.get_downstream_atoms(c1_idx, o_idx)
-            downstream_psi = self.get_downstream_atoms(o_idx, cx_idx)
-
+            downstream_phi = self.get_downstream_atoms(c1_idx, ox_idx)
+            downstream_psi = self.get_downstream_atoms(ox_idx, cx_idx)
+            
             for basin in basins:
                 target_phi = basin["phi"]
                 target_psi = basin["psi"]
 
                 c1_coords = [self.mol.records[c1_idx].x, self.mol.records[c1_idx].y, self.mol.records[c1_idx].z]
-                o_coords = [self.mol.records[o_idx].x, self.mol.records[o_idx].y, self.mol.records[o_idx].z]
+                c2_coords = [self.mol.records[c2_idx].x, self.mol.records[c2_idx].y, self.mol.records[c2_idx].z]
+                ox_coords = [self.mol.records[ox_idx].x, self.mol.records[ox_idx].y, self.mol.records[ox_idx].z]
                 cx_coords = [self.mol.records[cx_idx].x, self.mol.records[cx_idx].y, self.mol.records[cx_idx].z]
-                o5_coords = [self.mol.records[o5_idx].x, self.mol.records[o5_idx].y, self.mol.records[o5_idx].z]
-                cx_ref_coords = [self.mol.records[cx_ref_idx].x, self.mol.records[cx_ref_idx].y, self.mol.records[cx_ref_idx].z]
+                cx1_coords = [self.mol.records[cx1_idx].x, self.mol.records[cx1_idx].y, self.mol.records[cx1_idx].z]
 
-                current_phi = get_dihedral(o5_coords, c1_coords, o_coords, cx_coords)
-                current_psi = get_dihedral(c1_coords, o_coords, cx_coords, cx_ref_coords)
+                current_phi = get_dihedral(c2_coords, c1_coords, ox_coords, cx_coords)
+                current_psi = get_dihedral(c1_coords, ox_coords, cx_coords, cx1_coords)
 
                 delta_phi = target_phi - current_phi
                 delta_psi = target_psi - current_psi
 
-                # Phi rotation: Pivot is C1, Axis is Bridge O. Moves everything downstream of C1-O bond.
-                rotate_dihedral([self.mol.records[i] for i in downstream_phi], c1_coords, o_coords, delta_phi)
+                # Phi rotation: Pivot is C1, Axis is Bridge O (OX). Moves everything downstream of C1-O bond.
+                rotate_dihedral([self.mol.records[i] for i in downstream_phi], c1_coords, ox_coords, delta_phi)
                 
-                # Psi rotation: Pivot is Bridge O, Axis is CX. Moves everything downstream of O-CX bond.
-                rotate_dihedral([self.mol.records[i] for i in downstream_psi], o_coords, cx_coords, delta_psi)
+                # Psi rotation: Pivot is Bridge O (OX), Axis is CX. Moves everything downstream of O-CX bond.
+                rotate_dihedral([self.mol.records[i] for i in downstream_psi], ox_coords, cx_coords, delta_psi)
                 
-                # Check for clashes -> combine both downstream lists to check everything that just moved
+                # Start building the list of moved atoms for the steric check
                 moving_records = [self.mol.records[i] for i in downstream_phi + downstream_psi]
+                
+                # Execute Omega rotation ONLY if it exists in the basin
+                target_omega = basin.get("omega")
+                if target_omega is not None and c4_idx is not None:
+                    c4_coords = [self.mol.records[c4_idx].x, self.mol.records[c4_idx].y, self.mol.records[c4_idx].z]
+                    
+                    # Omega: O6-C6-C5-C4. (For 1->6 linkage: OX is O6, CX is C6, CX1 is C5)
+                    current_omega = get_dihedral(ox_coords, cx_coords, cx1_coords, c4_coords)
+                    delta_omega = target_omega - current_omega
+                    
+                    # Pivot is C5 (cx1_idx), Axis is C6 (cx_idx).
+                    downstream_omega = self.get_downstream_atoms(cx1_idx, cx_idx)
+                    rotate_dihedral([self.mol.records[i] for i in downstream_omega], cx1_coords, cx_coords, delta_omega)
+                    
+                    moving_records.extend([self.mol.records[i] for i in downstream_omega])
+                    log_msg = f"Success: Settled in basin Phi:{target_phi}, Psi:{target_psi}, Omega:{target_omega}"
+                else:
+                    log_msg = f"Success: Settled in basin Phi:{target_phi}, Psi:{target_psi}"
+
+                # Check for clashes
                 dist, msg = steric_checker.check_clashes(limit_to_atoms=moving_records)
                 
                 if msg is None:
-                    print(f"Success: Settled in basin Phi:{target_phi}, Psi:{target_psi}")
+                    print(log_msg)
                     break
