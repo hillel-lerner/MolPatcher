@@ -77,7 +77,40 @@ if __name__ == "__main__":
         target_reference=target_anchors[0], 
         target_anchors=target_anchors
     )
-
+    # ==========================================
+    # --- ADD THIS: THE SAFE GRAPH HEALER ---
+    # ==========================================
+    print("Safely Patching Glycan Graph...")
+    from mol_patcher.utilities import get_distance
+    
+    protein_res = {"ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", "ASX"}
+    
+    for i, a1 in enumerate(stitched_mol.records):
+        for j in range(i+1, len(stitched_mol.records)):
+            a2 = stitched_mol.records[j]
+            
+            # Skip the protein completely
+            if a1.res_name.strip() in protein_res or a2.res_name.strip() in protein_res:
+                continue
+                
+            # Fast distance check
+            if abs(a1.x - a2.x) > 2.0 or abs(a1.y - a2.y) > 2.0 or abs(a1.z - a2.z) > 2.0:
+                continue
+                
+            dist = get_distance((a1.x, a1.y, a1.z), (a2.x, a2.y, a2.z))
+            is_h = a1.name.strip().startswith('H') or a2.name.strip().startswith('H')
+            max_dist = 1.25 if is_h else 1.65
+            
+            if dist <= max_dist:
+                # 1. ALWAYS heal bonds inside the exact same sugar ring (prevents tearing)
+                if a1.res_seq == a2.res_seq:
+                    graph.nx_graph.add_edge(i, j)
+                # 2. Only heal bonds between DIFFERENT rings if they are C-O or C-N (prevents knotting)
+                else:
+                    types = {a1.name.strip()[0], a2.name.strip()[0]}
+                    if types == {'C', 'O'} or types == {'C', 'N'}:
+                        graph.nx_graph.add_edge(i, j)
+    # ==========================================
     # --- INITIALIZE THE ORCHESTRATOR ---
     print("Identifying moving vs static clusters...")
     moving_atoms, static_atoms = identify_optimization_clusters(

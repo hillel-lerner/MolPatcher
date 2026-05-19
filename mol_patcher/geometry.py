@@ -522,7 +522,7 @@ class MolGraph:
 
 class StericChecker:
 
-    def __init__(self, mol_graph, moving_atoms, static_atoms, tolerance=0.75):
+    def __init__(self, mol_graph, moving_atoms, static_atoms, tolerance=0.55):
         self.mol_graph = mol_graph
         
         # Filter out atoms that do not move during sidechain sweeps.
@@ -549,7 +549,7 @@ class StericChecker:
             m_idx = self.atom_to_idx[m_atom.serial]
             
             close_neighbors = nx.single_source_shortest_path_length(
-                self.mol_graph.nx_graph, m_idx, cutoff=3
+                self.mol_graph.nx_graph, m_idx, cutoff=12
             )
             
             for s_atom in self.static_atoms:

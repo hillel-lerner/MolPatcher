@@ -189,6 +189,14 @@ class GlycanSweeper:
         
     def find_linkages(self, patch_chain):
         """Scans the molecule and populates the self.linkages list."""
+
+        iupac_map = {
+            "BGLC": "Glc", "AGLC": "Glc", "GLC": "Glc", "NAG": "Glc", 
+            "BMAN": "Man", "AMAN": "Man", "MAN": "Man",
+            "BGAL": "Gal", "AGAL": "Gal", "GAL": "Gal",
+            "AFUC": "Fuc", "BFUC": "Fuc", "FUC": "Fuc"
+        }
+
         for node in self.graph.nodes():
             atom = self.mol.records[node]
 
@@ -233,8 +241,18 @@ class GlycanSweeper:
                                 if r.name.strip() == "C4" and linkage_num == "6": c4_idx = i
                         
                         if cx1_idx is not None:
+                            
+                            # --- NEW: Build the Master Library Key ---
+                            res1_name = atom.res_name.strip()
+                            res2_name = cx_atom.res_name.strip()
+                            
+                            prefix1 = iupac_map.get(res1_name, "Unk")
+                            prefix2 = iupac_map.get(res2_name, "Unk")
+                            
+                            link_type = f"{prefix1}{prefix2}_{anomer}1{linkage_num}"
+                            
                             self.linkages.append({
-                                "type": f"{anomer}1{linkage_num}",
+                                "type": link_type,
                                 "c1_idx": c1_idx, "ox_idx": bridge_o_idx, "cx_idx": cx_idx,
                                 "o5_idx": o5_idx, "cx1_idx": cx1_idx, "c2_idx": c2_idx, "c4_idx": c4_idx
                             })
@@ -259,26 +277,67 @@ class GreedyDFS:
         return self._search(0)
 
     def _search(self, linkage_idx):
-        """Recursive backtracking function."""
-        # Base Case: successfully placed the final leaf node
+        """Recursive backtracking function with SNFG translation."""
         if linkage_idx == len(self.linkages):
             return True
 
         linkage = self.linkages[linkage_idx]
-        basins = self.library.get(linkage["type"], [])
+        raw_link_type = linkage["type"] # e.g., "ManGlc_b14"
         
+        # --- N-GLYCAN to SNFG from Beicer ---
+        nglycan_dict = {
+            "GlcGlc_b14": "Nglycan_Core_01_a1",  # Core GlcNAc-GlcNAc
+            "ManGlc_b14": "Nglycan_Core_02_a1",  # Core Man-GlcNAc
+            "FucGlc_a16": "Nglycan_Core_03_a1",  # Core Fuc-GlcNAc
+            "ManMan_a13": "Nglycan_Core_04_a1",  # Man-Man a1-3 (Branch)
+            "ManMan_a16": "Nglycan_Core_05_a1",  # Man-Man a1-6 (Branch)
+            "ManMan_a12": "Nglycan_Core_06_a1",  # Man-Man a1-2 (Branch)
+            "GalGlc_b14": "Nglycan_Core_09_a1",  # Gal-GlcNAc
+            "GlcMan_b12": "Nglycan_Core_10_a1",  # GlcNAc-Man b1-2
+            "GlcMan_b14": "Nglycan_Core_12_a1",  # GlcNAc-Man b1-4
+            "GlcMan_b16": "Nglycan_Core_14_a1",  # GlcNAc-Man b1-6
+            "FucGlc_a13": "Nglycan_Core_15_a1"   # Fuc-GlcNAc a1-3
+        }
+
+        # Try specific N-glycan data
+        if raw_link_type in nglycan_dict:
+            target_key = nglycan_dict[raw_link_type]
+            basins = self.library.get(target_key, [])
+        else:
+            basins = []
+
+        # Fall back to generic homodimers (e.g., standard ManMan_a13)
         if not basins:
-            # If no basin data exists, leave it as is and skip to the next linkage
-            return self._search(linkage_idx + 1)
+            basins = self.library.get(raw_link_type, [])
+            
+        # Final physical proxy (Forces generic GlcGlc geometry)
+        if not basins:
+            bond_type = raw_link_type.split("_")[-1] if "_" in raw_link_type else raw_link_type
+            fallback_key = f"GlcGlc_{bond_type}"
+            basins = self.library.get(fallback_key, [])
+            
+            if not basins:
+                print(f"Warning: {raw_link_type} completely missing. Leaving frozen.")
+                return self._search(linkage_idx + 1)
 
         c1_idx, ox_idx, cx_idx = linkage["c1_idx"], linkage["ox_idx"], linkage["cx_idx"]
         cx1_idx, c2_idx, c4_idx = linkage["cx1_idx"], linkage["c2_idx"], linkage["c4_idx"]
 
-        downstream_phi = get_downstream_atoms(self.nx_graph, self.mol.records, c1_idx, ox_idx)
-        downstream_psi = get_downstream_atoms(self.nx_graph, self.mol.records, ox_idx, cx_idx)
+        # --- REVERSED AXIS FIX ---
+        downstream_phi = get_downstream_atoms(self.nx_graph, self.mol.records, pivot_idx=ox_idx, axis_idx=c1_idx)
+        downstream_psi = get_downstream_atoms(self.nx_graph, self.mol.records, pivot_idx=cx_idx, axis_idx=ox_idx)
+        
+        # Combine your raw index lists first
+        all_moving_indices = downstream_phi + downstream_psi
 
+        # Map the indices (integers) to their current coordinates
+        restore_point = {idx: (self.mol.records[idx].x, self.mol.records[idx].y, self.mol.records[idx].z) 
+                        for idx in all_moving_indices}
+        
+        # Create object list for rotations/sterics afterwards
+        moving_records = [self.mol.records[idx] for idx in all_moving_indices]
+        
         for basin in basins:
-            # Measure dynamic current angles
             c1_coords = [self.mol.records[c1_idx].x, self.mol.records[c1_idx].y, self.mol.records[c1_idx].z]
             c2_coords = [self.mol.records[c2_idx].x, self.mol.records[c2_idx].y, self.mol.records[c2_idx].z]
             ox_coords = [self.mol.records[ox_idx].x, self.mol.records[ox_idx].y, self.mol.records[ox_idx].z]
@@ -288,33 +347,36 @@ class GreedyDFS:
             delta_phi = basin["phi"] - get_dihedral(c2_coords, c1_coords, ox_coords, cx_coords)
             delta_psi = basin["psi"] - get_dihedral(c1_coords, ox_coords, cx_coords, cx1_coords)
 
-            # Apply rotations
             rotate_dihedral([self.mol.records[i] for i in downstream_phi], c1_coords, ox_coords, delta_phi)
             rotate_dihedral([self.mol.records[i] for i in downstream_psi], ox_coords, cx_coords, delta_psi)
 
             moving_records = [self.mol.records[i] for i in downstream_phi + downstream_psi]
 
-            # Optional Omega rotation
             if basin.get("omega") is not None and c4_idx is not None:
                 c4_coords = [self.mol.records[c4_idx].x, self.mol.records[c4_idx].y, self.mol.records[c4_idx].z]
                 delta_omega = basin["omega"] - get_dihedral(ox_coords, cx_coords, cx1_coords, c4_coords)
                 
-                downstream_omega = get_downstream_atoms(self.nx_graph, self.mol.records, cx1_idx, cx_idx)
+                downstream_omega = get_downstream_atoms(self.nx_graph, self.mol.records, pivot_idx=cx1_idx, axis_idx=cx_idx)
                 rotate_dihedral([self.mol.records[i] for i in downstream_omega], cx1_coords, cx_coords, delta_omega)
                 moving_records.extend([self.mol.records[i] for i in downstream_omega])
 
-            # Check Sterics
-            dist, msg = self.checker.check_clashes(limit_to_atoms=moving_records)
+            child_res_seq = self.mol.records[c1_idx].res_seq
+            local_moving = [a for a in moving_records if a.res_seq == child_res_seq]
+
+            dist, msg = self.checker.check_clashes(limit_to_atoms=local_moving)
             
             if dist is None:
-                # Local success --> Recurse to the next downstream linkage.
                 if self._search(linkage_idx + 1):
-                    return True # The entire downstream tree survived
+                    return True
+            else:
+                # --- ADD THIS BACK IN ---
+                print(f"      [Debug] Clash on {raw_link_type} (Basin {basin['phi']}/{basin['psi']}): {msg}")
             
-            # If dist is NOT None, or the downstream tree failed, the loop continues to the next basin.
-            # The next loop iteration calculates a new delta from the current coordinates, effectively erasing the bad pose.
-
-        # If all basins for this linkage fail, trigger the backtrack
+            for i, (old_x, old_y, old_z) in restore_point.items():
+                self.mol.records[i].x = old_x
+                self.mol.records[i].y = old_y
+                self.mol.records[i].z = old_z
+                    
         return False
 
 
