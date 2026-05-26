@@ -8,6 +8,7 @@
     "patch_anchors": ["C10", "C11", "N"],
     "patch_bridge": "C7",
     "patch_merged_atom": "N",
+    "patch_deletions" : ["H1", "H8", "H12"],
     "patch_files": {
         "itp": "pfp_patch_new.itp",
         "pdb": "pfp_patch_new.pdb"
