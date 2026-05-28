@@ -1,159 +1,83 @@
 import os
+import re
 
-def build_master_forcefield_complete(base_path, pfp_path, modded_ff, output_path):
-    """
-    Merges the base protein forcefield, the patch forcefield, and specific manual 
-    modifications into a single, deduplicated master forcefield ITP file.
 
-    :param base_path: (str) Path to the original unpatched protein forcefield.
-    :param pfp_path: (str) Path to the patch molecule forcefield.
-    :param modded_ff: (str) Path to the forcefield containing manual modifications.
-    :param output_path: (str) Path where the final master forcefield will be saved.
-    :return: None. Writes the combined forcefield to the specified output path.
-    """
+class ForceField:
+    def __init__(self, ff_file) -> None:
+        self.ff_file = ff_file
+        self.ff_type, self.filetype = self.find_ff_type(self.ff_file)
 
-    mods = {}
-    
-    def add_mod(sec, line, tag):
-        # GROMACS uses funct 1 or 9 for proper dihedrals, and 2 or 4 for impropers.
-        # This explicitly separates them to prevent parameters from mixing during the merge.
-        if sec == "[ dihedraltypes ]":
-            parts = line.split(';')[0].split()
-            if len(parts) >= 5:
-                func = parts[4]
-                if func in ['1', '9']:
-                    sec = "[ dihedraltypes_proper ]"
-                elif func in ['2', '4']:
-                    sec = "[ dihedraltypes_improper ]"
-        
-        if sec not in mods:
-            mods[sec] = []
-        
-        modified_line = line.split(';')[0].rstrip() + f" ; {tag}\n"
-        mods[sec].append(modified_line)
+        self.parameters = {
+            "atomtypes": [],
+            "bonds": [],
+            "angles": [],
+            "dihedrals_proper": [],
+            "dihedrals_improper": [],
+        }
 
-    # 1. Load PFP base parameters
-    current_sec = None
-    with open(pfp_path, "r") as f_pfp:
-        for line in f_pfp:
-            stripped = line.strip()
-            if stripped.startswith("[") and stripped.endswith("]"):
-                current_sec = stripped
-            elif stripped and not stripped.startswith(";"):
-                if current_sec and current_sec != "[ defaults ]":
-                    add_mod(current_sec, line, "added from pfp forcefield")
+    def find_ff_type(self, ff_file):
+        base_name = os.path.basename(ff_file)
+        filetype = None
+        ff_type = None
 
-    # 2. Load PI's modifications
-    current_sec = None
-    with open(modded_ff, "r") as f_pi:
-        for line in f_pi:
-            stripped = line.strip()
-            if stripped.startswith("[") and stripped.endswith("]"):
-                current_sec = stripped
-            elif "MM" in line and current_sec:
-                add_mod(current_sec, line, "added by HL (junction)")
+        if ".prm" in base_name:
+            filetype = "prm"
+        elif ".str" in base_name:
+            filetype = "str"
+        elif ".itp" in base_name:
+            filetype = "itp"
 
-    # 3. Inject explicit atom types
-    extra_atomtypes = [
-        " CLA       17   35.450000   -1.00    A   0.404468018036      0.6276       ; explicit addition\n",
-        " HT         1   1.0080      0.417    A   4.00013524445e-02   1.924640e-01 ; explicit addition\n",
-        " NG311      7   14.0070    -0.092    A   3.56359487256e-01   1.882800e-01 ; explicit addition\n",
-        " OT         8   15.9994    -0.834    A   3.15057422683e-01   6.363864e-01 ; explicit addition\n",
-        " POT       19   39.102000   1.00     A   0.314264522824      0.364008     ; explicit addition\n",
-        " SOD       11   22.989770   1.000    A   0.251367073323      0.19623      ; explicit addition\n"
-    ]
-    if "[ atomtypes ]" not in mods:
-        mods["[ atomtypes ]"] = []
-    mods["[ atomtypes ]"].extend(extra_atomtypes)
+        if base_name == "par_all36_carb.prm":
+            ff_type = "charmm36_carb"
+        elif base_name == "par_all36_prot.prm":
+            ff_type = "charmm36_prot"
+        elif base_name == "toppar_all36_carb_glycopeptide.str":
+            ff_type = "charmm_glycopeptide"
 
-    extra_angles = [
-        " CT2    NG311   HGPAM1     5   114.000000   334.720000   0.000000   0.000000 ; rescued H angle\n"
-    ]
-    extra_dihs = [
-        " CT2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
-        " HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
-        # Multiplicity 1 with Phase 0.0 forces 180-degree trans state for the amide-omega dihedral .
-        " CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix\n",
-        
-        # Dihedral 1: CT2 - NG311 - CG301 - CG321 (from synthetic polymer base)
-        " CT2      NG311   CG301   CG321     9  180.000000   10.460000          1 ; Added by HL (junction) dih 1 mult 1\n",
-        " CT2      NG311   CG301   CG321     9    0.000000    6.276000          2 ; Added by HL (junction) dih 1 mult 2\n",
-        " CT2      NG311   CG301   CG321     9    0.000000    2.092000          3 ; Added by HL (junction) dih 1 mult 3\n",
-        
-        # Dihedral 2: CT2 - NG311 - CG301 - OG311 (from model compound ethoxyethylaminopropanol parameters)
-        " CT2      NG311   CG301   OG311     9  180.000000    9.832400          1 ; Added by HL (junction) dih 2 mult 1\n",
-        " CT2      NG311   CG301   OG311     9  180.000000    0.292880          2 ; Added by HL (junction) dih 2 mult 2\n",
-        " CT2      NG311   CG301   OG311     9  180.000000    8.577200          3 ; Added by HL (junction) dih 2 mult 3\n"
-    ]
+        return ff_type, filetype
 
-    if "[ angletypes ]" not in mods:
-        mods["[ angletypes ]"] = []
-    mods["[ angletypes ]"].extend(extra_angles)
-    
-    if "[ dihedraltypes_proper ]" not in mods:
-        mods["[ dihedraltypes_proper ]"] = []
-    mods["[ dihedraltypes_proper ]"].extend(extra_dihs)
+    def read_ff(self):
 
-    # 4. Merge, deduplicate, sort, and write
-    with open(base_path, "r") as f_base, open(output_path, "w") as f_out:
-        current_sec = None
-        active_mod_key = None
-        section_lines = []
-        dihedral_count = 0
-        
-        def write_sorted_section():
-            if current_sec:
-                combined_lines = section_lines + mods.get(active_mod_key, [])
-                
-                # Matrix-style ITP sections + global defaults require exact line ordering. 
-                # Deduplicating or sorting these will break the forcefield.
-                if current_sec in ["[ defaults ]", "[ cmaptypes ]"]:
-                    unique_lines = combined_lines
-                else:
-                    # Standardizes whitespace to identify and remove duplicate parameter definitions
-                    seen_standard = set()
-                    unique_lines = []
-                    for l in combined_lines:
-                        data_only = l.split(';')[0].strip()
-                        standardized = " ".join(data_only.split())
-                        if not standardized or standardized not in seen_standard:
-                            if standardized:
-                                seen_standard.add(standardized)
-                            unique_lines.append(l)
-                    unique_lines.sort()
+        current_section = None
+        itp_header_pattern = re.compile(r"\[\s*(\w+)\s*\]")
 
-                for l in unique_lines:
-                    f_out.write(l)
+        charmm_mapping = {
+            "ATOMS": "atomtypes",
+            "BONDS": "bonds",
+            "ANGLES": "angles",
+            "DIHEDRALS": "dihedrals_proper",
+            "IMPROPER": "dihedrals_improper",
+        }
 
-        for line in f_base:
-            stripped = line.strip()
-            if stripped.startswith("[") and stripped.endswith("]"):
-                write_sorted_section()
-                current_sec = stripped
-                section_lines = []
-                
-                # Track which dihedral section we are currently in
-                if current_sec == "[ dihedraltypes ]":
-                    dihedral_count += 1
-                    if dihedral_count == 1:
-                        active_mod_key = "[ dihedraltypes_proper ]"
-                    else:
-                        active_mod_key = "[ dihedraltypes_improper ]"
-                else:
-                    active_mod_key = current_sec
-                    
-                f_out.write(line)
-            elif stripped.startswith(";") or not stripped:
-                f_out.write(line)
-            else:
-                section_lines.append(line)
-                
-        write_sorted_section()
+        with open(self.ff_file, "r") as f:
+            for line in f:
+                clean_line = line.split("!")[0].split(";")[0].strip()
+                if not clean_line:
+                    continue
 
-# Execute
-build_master_forcefield_complete(
-    base_path="forcefields/6oge_all_forcefield.itp", 
-    pfp_path="forcefields/ff_pfp.itp",
-    modded_ff="forcefields/ff_PRODE_E136.itp", 
-    output_path="forcefields/forcefield_master.itp"
-)
+                if self.filetype == "itp":
+                    match = itp_header_pattern.match(clean_line)
+                    if match:
+                        current_section = match.group(1)
+                        continue
+                elif self.filetype in ["prm", "str"]:
+                    if clean_line in charmm_mapping:
+                        current_section = charmm_mapping[clean_line]
+                        continue
+                if current_section in self.parameters:
+                    self.parameters[current_section].append(clean_line)
+
+    def inject_params(self, new_params: dict):
+        existing_atoms = set()
+        existing_bonds = set()
+        existing_angles = set()
+        existing_dihedrals = set()
+        existing_improper = set()
+
+        for line in self.parameters["dihedrals_proper"]:
+            parts = line.split()
+            atoms = tuple(parts[0:4])
+            existing_dihedrals.add(atoms)
+
+    def write_ff(self, outfile):
+        pass

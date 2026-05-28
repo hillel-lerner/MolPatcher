@@ -2,6 +2,7 @@ from mol_patcher.utilities import get_dihedral
 from mol_patcher.geometry import StericChecker, rotate_dihedral, random_rot
 import networkx as nx
 import numpy as np
+import sys
 
 
 def get_atom_by_name(mol, res_seq, chain, name):
@@ -107,59 +108,6 @@ class RotamerSweeper:
         return best_penalty, best_pose, best_coords
 
 
-class SCRSweeper:
-    """Docking engine for non-covalently bound SCRs via Monte Carlo Sampling"""
-
-    def __init__(self, mol, graph, config, checker):
-        self.mol = mol
-        self.graph = graph
-        self.config = config
-        self.checker = checker
-
-    def dock_near(self, glycan_atoms, scr_atoms, max_dist_nm=1.5):
-
-        if not glycan_atoms or not scr_atoms:
-            print("Error: Atom lists are empty. Cannot calculate centroid.")
-            return False
-
-        checker = StericChecker(self.graph, scr_atoms.records, self.mol.records)
-        # Glycan Centroid
-        glycan_coords = np.array([[a.x, a.y, a.z] for a in glycan_atoms])
-        centroid = np.mean(glycan_coords, axis=0)
-
-        base_scr_coords = np.array([[a.x, a.y, a.z] for a in scr_atoms.records])
-
-        # Random Sampling (Monte Carlo)
-        best_penalty = float("inf")
-        best_pose_coords = None
-
-        print(
-            f"Docking SCR near Glycan Centroid [{centroid[0]:.2f}, {centroid[1]:.2f}, {centroid[2]:.2f}]..."
-        )
-
-        for _ in range(500):  # 500 attempts
-            temp_coords = random_rot(
-                scr_atoms.records, centroid, base_scr_coords, max_dist_nm
-            )
-            # Score
-            penalty, _ = checker.score_pose(limit_to_atoms=scr_atoms.records)
-
-            if penalty < best_penalty:
-                best_penalty = penalty
-                best_pose_coords = temp_coords
-
-        # Apply best
-        if best_pose_coords is not None:
-            for i, atom in enumerate(scr_atoms.records):
-                atom.x, atom.y, atom.z = best_pose_coords[i]
-
-            print(f"SCR Docking complete. Best penalty: {best_penalty:.2f}")
-            return True
-        else:
-            print("Error: Could not calculate valid poses")
-            return False
-
-
 class SweepConductor:
     """Orchestrates the sweeps for steric resolution."""
 
@@ -194,3 +142,59 @@ class SweepConductor:
         else:
             print("\nFAILURE: Could not calculate any poses.")
             return False
+
+    def rotate_and_dock(self, scr_mol, receptor_atoms, max_dist_nm=1.5, iters=5000):
+        """
+        Orchestates (con-covalent) Monte Carlo docking of an SCR
+        """
+
+        if not receptor_atoms or not scr_mol.records:
+            print("Error: Empty atoms lists")
+            return False
+
+        checker = StericChecker(
+            self.graph, scr_mol.records, self.mol.records, docking_target=receptor_atoms
+        )
+
+        glycan_coords = np.array([[a.x, a.y, a.z] for a in receptor_atoms])
+        centroid = np.mean(glycan_coords, axis=0)
+
+        base_scr_coords = np.array([[a.x, a.y, a.z] for a in scr_mol.records])
+
+        best_penalty = float("inf")
+        best_coords = None
+
+        spinner = ["|", "/", "-", "\\"]
+
+        for _ in range(iters):
+            char = spinner[(_ // 30) % 4]
+            sys.stdout.write(
+                f"\rDocking SCR near Glycan Centroid [{centroid[0]:.2f}, {centroid[1]:.2f}, {centroid[2]:.2f}]... {char}"
+            )
+            sys.stdout.flush()
+            sys.stdout.write("\b")
+
+            temp_coords = random_rot(
+                scr_mol.records, centroid, base_scr_coords, max_dist_nm
+            )
+
+            score = checker.score_docking(limit_to_atoms=scr_mol.records)
+
+            if score < best_penalty:
+                best_penalty = score
+                best_coords = temp_coords
+
+        if best_coords is not None:
+            for i, atom in enumerate(scr_mol.records):
+                atom.x, atom.y, atom.z = best_coords[i]
+
+            final_clash, final_contacts = checker.score_pose(
+                limit_to_atoms=scr_mol.records
+            )
+
+            print("SCR Docking complete.")
+            print(f"    -> Interface Contacts: {final_contacts} atom pairs")
+            print(f"    -> Intermolecular Clash: {final_clash:.2f} Å (Total Depth)")
+            return True
+        else:
+            print("Error: Could not calculate valid poses")

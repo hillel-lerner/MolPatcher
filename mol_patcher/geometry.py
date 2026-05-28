@@ -1,13 +1,11 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
-from typing import List, Tuple
+from typing import List
 from .mol_record import PdbRecord, Mol
 from .utilities import get_distance, get_dihedral
 import networkx as nx
-import math
 import copy
 import sys
-import json
 
 
 def get_coords_array(atoms: List[PdbRecord]) -> np.ndarray:
@@ -613,7 +611,9 @@ class MolGraph:
 
 
 class StericChecker:
-    def __init__(self, mol_graph, moving_atoms, static_atoms, tolerance=0.55):
+    def __init__(
+        self, mol_graph, moving_atoms, static_atoms, tolerance=0.55, docking_target=None
+    ):
         self.mol_graph = mol_graph
 
         # Filter out atoms that do not move during sidechain sweeps.
@@ -621,6 +621,23 @@ class StericChecker:
         self.moving_atoms = moving_atoms
         self.static_atoms = static_atoms
         self.tolerance = tolerance
+
+        # Filter for non-covalent interaction tolerance
+        if docking_target is not None and len(docking_target) > 0:
+            target_coords = np.array([[a.x, a.y, a.z] for a in docking_target])
+            centroid = np.mean(target_coords, axis=0)
+
+            self.static_atoms = [
+                s
+                for s in static_atoms
+                if get_distance((s.x, s.y, s.z), centroid) < 30.0
+            ]
+            print(
+                f"    [Spatial Filter] Reduced search space from {len(static_atoms)} to {len(self.static_atoms)} atoms."
+            )
+
+        else:
+            self.static_atoms = static_atoms
 
         # Effective/bonded van der Waals radii (in Angstroms). See J. Charry, A. Tkatchenko, J. Chem. Theory Comput. 2024, 20, 7469–7478.
         self.vdw_radii = {
@@ -756,3 +773,41 @@ class StericChecker:
                     clash_count += 1
 
         return total_penalty, clash_count
+
+    def score_docking(self, limit_to_atoms=None, contact_threshold=5.5):
+        """
+        Calculates a distance score for docking using Numpy. Rewards atoms within contact threshold but penalizes steric clashes.
+        Lower score (more negative) is better.
+        """
+        check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
+
+        m_coords = np.array([[a.x, a.y, a.z] for a in check_list])
+        s_coords = np.array([[a.x, a.y, a.z] for a in self.static_atoms])
+
+        m_vdw = np.array(
+            [self.vdw_radii.get(a.name.strip()[0], 1.5) for a in check_list]
+        )
+        s_vdw = np.array(
+            [self.vdw_radii.get(a.name.strip()[0], 1.5) for a in self.static_atoms]
+        )
+
+        # use np.newaxis for broadcasting -> adding dimension(s) of size 1 so that we can perform element operations
+        diff = m_coords[:, np.newaxis, :] - s_coords[np.newaxis, :, :]
+        distances = np.linalg.norm(
+            diff, axis=2
+        )  # axis=2 so that we use standard 3D distance formula along 3rd dimension.
+
+        docking_tolerance = 0.9
+        clash_thresholds = (
+            m_vdw[:, np.newaxis] + s_vdw[np.newaxis, :]
+        ) * docking_tolerance
+
+        clash_mask = distances - clash_thresholds
+        total_penalty = np.sum(
+            (clash_thresholds[clash_mask] - distances[clash_mask]) * 100
+        )
+
+        contact_mask = (distances >= clash_thresholds) & (distances < contact_threshold)
+        contact_reward = np.sum(contact_mask) * 0.1
+
+        return total_penalty - contact_reward
