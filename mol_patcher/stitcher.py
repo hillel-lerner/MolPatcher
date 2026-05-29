@@ -646,6 +646,9 @@ class Stitcher:
         self, stitched_mol, type_map, stitched_itp_to_pdb, target_chain
     ):
         """Updates specific atom types at the junction exclusively on the target chain."""
+
+        self.retyped_indices = set()
+
         for atom in stitched_mol.atoms:
             rec = stitched_itp_to_pdb.get(atom.number)
             if (
@@ -655,6 +658,8 @@ class Stitcher:
             ):
                 if atom.atom.strip() in type_map:
                     atom.type = type_map[atom.atom.strip()]
+                    self.retyped_indices.add(atom.number)
+
         return stitched_mol
 
     def balance_electrostatics(
@@ -737,31 +742,72 @@ class Stitcher:
         Translates junction atom data into corresponding atom types
         to request parameters from the forcefield database.
         """
-
         type_lookup = {atom.number: atom.type for atom in stitched_mol.atoms}
+        mapped_types = set(self.config.get("type_mapping", {}).values())
 
         requests = {
-            "bonds": [],
-            "angles": [],
-            "dihedrals_proper": [],
-            "dihedrals_improper": [],
+            "bonds": set(),
+            "angles": set(),
+            "dihedrals_proper": set(),
+            "dihedrals_improper": set(),
         }
 
+        def is_boundary(types_tuple):
+            # Returns True if at least one atom is outside the mutated group
+            # Prevents requesting standard parameters already in the forcefield
+            return not all(t in mapped_types for t in types_tuple)
+
+        # Existing interactions that were altered by atom re-typing
+        if hasattr(self, "retyped_indices"):
+            for b in stitched_mol.bonds:
+                if b.a1 in self.retyped_indices or b.a2 in self.retyped_indices:
+                    t = (type_lookup[b.a1], type_lookup[b.a2])
+                    if is_boundary(t):
+                        requests["bonds"].add(t)
+
+            for a in stitched_mol.angles:
+                if (
+                    a.a1 in self.retyped_indices
+                    or a.a2 in self.retyped_indices
+                    or a.a3 in self.retyped_indices
+                ):
+                    t = (type_lookup[a.a1], type_lookup[a.a2], type_lookup[a.a3])
+                    if is_boundary(t):
+                        requests["angles"].add(t)
+
+            for d in stitched_mol.dihs:
+                if (
+                    d.a1 in self.retyped_indices
+                    or d.a2 in self.retyped_indices
+                    or d.a3 in self.retyped_indices
+                    or d.a4 in self.retyped_indices
+                ):
+                    t = (
+                        type_lookup[d.a1],
+                        type_lookup[d.a2],
+                        type_lookup[d.a3],
+                        type_lookup[d.a4],
+                    )
+                    if is_boundary(t):
+                        if getattr(d, "func", 9) in [1, 9]:
+                            requests["dihedrals_proper"].add(t)
+                        elif getattr(d, "func", 2) in [2, 4]:
+                            requests["dihedrals_improper"].add(t)
+
         a1, a2 = junction_log["bond"]
-        type_tuple = (type_lookup[a1], type_lookup[a2])
-        requests["bonds"].append(type_tuple)
+        requests["bonds"].add((type_lookup[a1], type_lookup[a2]))
 
         for a1, a2, a3 in junction_log["angles"]:
-            type_tuple = (type_lookup[a1], type_lookup[a2], type_lookup[a3])
-            requests["angles"].append(type_tuple)
+            requests["angles"].add((type_lookup[a1], type_lookup[a2], type_lookup[a3]))
 
         for a1, a2, a3, a4 in junction_log["dihs"]:
-            type_tuple = (
-                type_lookup[a1],
-                type_lookup[a2],
-                type_lookup[a3],
-                type_lookup[a4],
+            requests["dihedrals_proper"].add(
+                (
+                    type_lookup[a1],
+                    type_lookup[a2],
+                    type_lookup[a3],
+                    type_lookup[a4],
+                )
             )
-            requests["dihedrals_proper"].append(type_tuple)
 
-        return requests
+        return {k: list(v) for k, v in requests.items()}

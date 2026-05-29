@@ -28,7 +28,8 @@
   "type_mapping": {
     "ND2": "NC2D1",
     "HD22": "HCP1",
-    "CG": "CC2O1"
+    "CG": "CC2O1",
+    "OD1": "OC2D1"
   },
   "itp_junction": {
     "bond_type": 1,
