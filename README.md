@@ -39,9 +39,9 @@ MolPatcher uses a conda environment to manage dependencies and install the comma
     ```
 3. **Install the package locally:**
 
-  ```bash
-  pip install -e .
-  ```
+    ```bash
+    pip install -e .
+    ```
 
 ---
 
