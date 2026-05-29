@@ -190,8 +190,6 @@ MolPatcher includes a built-in **RotamerSweeper** that automatically resolves st
 
 The tool provides real-time terminal feedback via an animation spinner and progress indicators during the $O(N^2)$ graph-building phase.
 
-> **Note**: While MolPatcher optimizes for sterics, it is still recommended to visually inspect the resulting PDB in PyMOL or VMD before beginning long-production MD simulations.
-
 > **Note**: The `RotamerSweeper` is intelligently bypassed if the input JSON configures a rigid geometric template (e.g., specific N-glycan torsions). This ensures explicitly calculated junction geometries are not overwritten. While MolPatcher optimizes for sterics, it is still recommended to visually inspect the resulting PDB in PyMOL or VMD before beginning long-production MD simulations.
 
 ---
