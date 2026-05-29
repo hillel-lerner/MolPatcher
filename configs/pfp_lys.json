@@ -1,49 +1,157 @@
 {
-    "system_name": "pfp_lysine",
-    "target_res_name": "LYS",
-    "new_res_name": "LYX",
-    "base_anchors": ["CE", "CD", "NZ"],
-    "base_bridge": "NZ",
-    "base_deletions": ["HZ2", "HZ3"],
-    "patch_anchors": ["C10", "C11", "N"],
-    "patch_bridge": "C7",
-    "patch_merged_atom": "N",
-    "patch_deletions" : ["H1", "H8", "H12"],
-    "patch_files": {
-        "itp": "pfp_patch_new.itp",
-        "pdb": "pfp_patch_new.pdb"
-    },
-    "type_mapping": {
-        "NZ": "NG311",
-        "HZ1": "HGPAM1",
-        "HZ2": "HGPAM1",
-        "HZ3": "HGPAM1"
-    },
-    "charge_inheritance": {
-        "NZ": "N",
-        "CE": "C10",
-        "CD": "C11"
-    },
-    "charge_sinks": ["HD1", "HD2", "HG1", "HG2", "H2", "H3", "H4", "H5", "H6", "H7"],
-    "target_charge": 0,
-    "itp_junction": {
-        "bond_type": 1,
-        "angle_type": 5,
-        "dih_type": 9
-    },
-    "rigid_backbone": ["N", "H", "HN", "CA", "HA", "C", "O", "OXT"],
-    "chi_definitions": [
-        ["N", "CA", "CB", "CG"],
-        ["CA", "CB", "CG", "CD"],
-        ["CB", "CG", "CD", "CE"],
-        ["CG", "CD", "CE", "NZ"]
+  "system_name": "pfp_lysine",
+  "target_res_name": "LYS",
+  "new_res_name": "LYX",
+  "base_anchors": [
+    "CE",
+    "CD",
+    "NZ"
+  ],
+  "base_bridge": "NZ",
+  "base_deletions": [
+    "HZ2",
+    "HZ3"
+  ],
+  "patch_anchors": [
+    "C10",
+    "C11",
+    "N"
+  ],
+  "patch_bridge": "C7",
+  "patch_merged_atom": "N",
+  "patch_deletions": [
+    "H1",
+    "H8",
+    "H12"
+  ],
+  "patch_files": {
+    "itp": "pfp_patch_new.itp",
+    "pdb": "pfp_patch_new.pdb"
+  },
+  "type_mapping": {
+    "NZ": "NG311",
+    "HZ1": "HGPAM1",
+    "HZ2": "HGPAM1",
+    "HZ3": "HGPAM1"
+  },
+  "charge_inheritance": {
+    "NZ": "N",
+    "CE": "C10",
+    "CD": "C11"
+  },
+  "charge_sinks": [
+    "HD1",
+    "HD2",
+    "HG1",
+    "HG2",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "H7"
+  ],
+  "target_charge": 0,
+  "itp_junction": {
+    "bond_type": 1,
+    "angle_type": 5,
+    "dih_type": 9
+  },
+  "rigid_backbone": [
+    "N",
+    "H",
+    "HN",
+    "CA",
+    "HA",
+    "C",
+    "O",
+    "OXT"
+  ],
+  "chi_definitions": [
+    [
+      "N",
+      "CA",
+      "CB",
+      "CG"
     ],
-    "canonical_rotamers": [
-        [-60, 180, 180, 180],
-        [180, 180, 180, 180],
-        [60, 180, 180, 180],
-        [-60, -60, 180, 180],
-        [-60, 180, 60, 180],
-        [180, 60, 180, 180]
+    [
+      "CA",
+      "CB",
+      "CG",
+      "CD"
+    ],
+    [
+      "CB",
+      "CG",
+      "CD",
+      "CE"
+    ],
+    [
+      "CG",
+      "CD",
+      "CE",
+      "NZ"
     ]
+  ],
+  "canonical_rotamers": [
+    [
+      -60,
+      180,
+      180,
+      180
+    ],
+    [
+      180,
+      180,
+      180,
+      180
+    ],
+    [
+      60,
+      180,
+      180,
+      180
+    ],
+    [
+      -60,
+      -60,
+      180,
+      180
+    ],
+    [
+      -60,
+      180,
+      60,
+      180
+    ],
+    [
+      180,
+      60,
+      180,
+      180
+    ]
+  ],
+  "ff_parameters": {
+    "atomtypes": [
+      " NG311      7   14.0070    -0.092    A   3.56359487256e-01   1.882800e-01 ; explicit addition\n",
+      " HT         1   1.0080      0.417    A   4.00013524445e-02   1.924640e-01 ; explicit addition\n",
+      " OT         8   15.9994    -0.834    A   3.15057422683e-01   6.363864e-01 ; explicit addition\n"
+    ],
+    "bonds": [],
+    "angles": [
+      " CT2    NG311   HGPAM1     5   114.000000   334.720000   0.000000   0.000000 ; rescued H angle\n"
+    ],
+    "dihedrals_proper": [
+      " CT2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
+      " HA2        CT2   NG311  HGPAM1     9  0.000000e+00  0.000000e+00      1 ; rescued H dihedral\n",
+      " CT2      NG311   CG301   OG301     9  0.000000e+00  15.00000e+00      1 ; amide omega-fix\n",
+      " CT2      NG311   CG301   CG321     9  180.000000   10.460000          1 ; Added by HL (junction) dih 1 mult 1\n",
+      " CT2      NG311   CG301   CG321     9    0.000000    6.276000          2 ; Added by HL (junction) dih 1 mult 2\n",
+      " CT2      NG311   CG301   CG321     9    0.000000    2.092000          3 ; Added by HL (junction) dih 1 mult 3\n",
+      " CT2      NG311   CG301   OG311     9  180.000000    9.832400          1 ; Added by HL (junction) dih 2 mult 1\n",
+      " CT2      NG311   CG301   OG311     9  180.000000    0.292880          2 ; Added by HL (junction) dih 2 mult 2\n",
+      " CT2      NG311   CG301   OG311     9  180.000000    8.577200          3 ; Added by HL (junction) dih 2 mult 3\n"
+    ],
+    "dihedrals_improper": []
+  }
 }

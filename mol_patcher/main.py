@@ -3,6 +3,8 @@ import os
 import shutil
 import json
 
+from networkx import config
+
 from mol_patcher.stitcher import Stitcher, Patchloader
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
@@ -10,6 +12,7 @@ from mol_patcher.topology_io import TopologyParser, TopologyBuilder
 from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker
 from mol_patcher.sweeper import SweepConductor
 from mol_patcher import utilities
+from mol_patcher.combine_ff import ForceField
 
 
 def run_patch(
@@ -25,7 +28,7 @@ def run_patch(
     itp_chains,
     config_file,
     junction_config,
-    copy_ff=False,
+    copy_ff=None,
 ):
     """
     Orchestrates the entire MolPatcher pipeline: loading data, aligning the patch,
@@ -36,9 +39,12 @@ def run_patch(
     :param chain: (str) The target chain ID.
     :param itp_file: (str) Absolute path to the input ITP topology file.
     :param outdir: (str) Directory where the results folder will be created.
-    :param copy_ff: (bool) If True, copies the master forcefield to the output directory.
+    :param copy_ff: (list) Optional list of forcefield files to copy to the output directory.
     :return: None. Writes the patched PDB and ITP files to disk.
     """
+
+    if copy_ff is None:
+        copy_ff
 
     target_res = junction_config["target_res_name"]
     new_res = junction_config["new_res_name"]
@@ -46,7 +52,16 @@ def run_patch(
     run_folder_name = f"patched_{target_res.lower()}_{base_resid}_PRO{base_chain}"
     final_outdir = os.path.join(outdir, run_folder_name)
     infiles_dir = os.path.join(final_outdir, "infiles")
+    toppar_dir = os.path.join(final_outdir, "toppar")
     os.makedirs(infiles_dir, exist_ok=True)
+    os.makedirs(toppar_dir, exist_ok=True)
+
+    if copy_ff:
+        for ff_file in copy_ff:
+            if os.path.exists(ff_file):
+                shutil.copy2(ff_file, toppar_dir)
+            else:
+                print(f"Warning: Additional forcefield file not found: {ff_file}")
 
     shutil.copy2(base_pdb, infiles_dir)
     shutil.copy2(base_itp, infiles_dir)
@@ -58,14 +73,6 @@ def run_patch(
     _, patch_atoms, patch_name = parser.read_file(patch_pdb)
     patch_mol = Mol(name=patch_name, records=patch_atoms)
     patch_mol.load_itp(patch_itp)
-
-    # Load Base Protein Data
-    # parser = PdbParser()
-    # headers, raw_records, t_name = parser.read_file(base_pdb)
-    # fixed_chains = parser.fix_chain_id(raw_records)
-    # base_records = parser.fix_res_num(fixed_chains)
-
-    # base_mol = Mol(name=t_name, records=base_records, atoms=[], bonds=[], pairs=[], angles=[], dihs=[])
 
     parser = PdbParser()
     headers, raw_records, t_name = parser.read_file(base_pdb)
@@ -207,7 +214,7 @@ def run_patch(
         final_outdir, f"patched_{target_res.lower()}_{base_resid}.pdb"
     )
     itp_outfile = os.path.join(
-        final_outdir, f"patched_{target_res.lower()}_{base_resid}.itp"
+        toppar_dir, f"patched_{target_res.lower()}_{base_resid}.itp"
     )
 
     PdbBuilder(pdb_outfile, stitched_mol.records, headers).write_pdb()
@@ -216,6 +223,20 @@ def run_patch(
     box_size, applied_buffer = utilities.get_optimal_box_size(
         stitched_mol.records, buffer_percent=0.33, min_buffer_nm=3.0
     )
+
+    ff_refs = junction_config["charmm_forcefield_files"]
+    print("Scraping junction parameters from CHARMM database...")
+    ff_scraper = ForceField(ff_refs)
+    ff_scraper.read_database()
+
+    ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
+    ff_scraper.extract_junction_params(ff_requests)
+    junction_ff_path = os.path.join(
+        toppar_dir, f"junction_ff_{target_res.lower()}_{base_resid}.itp"
+    )
+    ff_scraper.write_ff(junction_ff_path)
+
+    print(f"   --> Wrote junction parameters to: {junction_ff_path}")
 
     real_mol_name = stitched_mol.name
     if stitched_mol.moltype_section:
@@ -294,18 +315,20 @@ def run_patch(
             log.write("Preset Geometry  : None (Flexible alignment used)\n")
         log.write("\n")
 
+        log.write("--- JUNCTION FORCEFIELD PARAMETERS ADDED ---\n")
+        if hasattr(ff_scraper, "junction_output"):
+            params_found = False
+            for section, lines in ff_scraper.junction_output.items():
+                if lines:
+                    params_found = True
+                    log.write(f"[ {section} ]\n")
+                    for line in sorted(list(lines)):
+                        log.write(line)
+                    log.write("\n")
+            if not params_found:
+                log.write("No junction parameters were extracted or added.\n\n")
+
     print(f"   --> Wrote execution log to: {log_file_path}")
-
-    if copy_ff:
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        ff_src = os.path.join(project_root, "forcefields", "forcefield_master.itp")
-        ff_dst = os.path.join(final_outdir, "forcefield_master.itp")
-
-        if os.path.exists(ff_src):
-            shutil.copy2(ff_src, ff_dst)
-            print(f"   --> Copied master forcefield to: {final_outdir}")
-        else:
-            print(f"Warning: Master forcefield not found at {ff_src}")
 
 
 def main():
@@ -334,7 +357,12 @@ def main():
     )
     parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
     parser.add_argument(
-        "-ff", "--ff", action="store_true", help="Copy master forcefield"
+        "-ff",
+        "--forcefield",
+        dest="copy_ff",
+        nargs="*",
+        default=[],
+        help="Optional list of additional forcefield files to copy to toppar directory",
     )
 
     args = parser.parse_args()
@@ -385,10 +413,9 @@ def main():
         itp_chains=[base_chain.strip()] if base_chain.strip() else [],
         config_file=config_basename,
         junction_config=junction_config,
-        copy_ff=args.ff,
+        copy_ff=args.copy_ff,
     )
 
 
 if __name__ == "__main__":
     main()
-

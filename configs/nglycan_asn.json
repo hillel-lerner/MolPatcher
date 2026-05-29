@@ -1,52 +1,104 @@
 {
-    "system_name": "glycan_aspargine",
-    "target_res_name": "ASN",
-    "new_res_name": "ASX",
-    "rigid_backbone": ["N", "CA", "C", "O"],
-    "base_anchors": ["N", "CA", "ND2"],
-    "patch_anchors": [],
-    "base_bridge": "ND2",
-    "patch_bridge": "C1",
-    "base_deletions": ["HD21"], 
-    "patch_deletions": ["O1", "HO1"],
-    "charge_sinks": [],
-    "target_charge": 0,
-    "itp_junction": {
-        "bond_type": 1,
-        "angle_type": 5,
-        "dih_type": 9
+  "system_name": "glycan_aspargine",
+  "target_res_name": "ASN",
+  "new_res_name": "ASX",
+  "rigid_backbone": [
+    "N",
+    "CA",
+    "C",
+    "O"
+  ],
+  "base_anchors": [
+    "N",
+    "CA",
+    "ND2"
+  ],
+  "patch_anchors": [],
+  "base_bridge": "ND2",
+  "patch_bridge": "C1",
+  "base_deletions": [
+    "HD21"
+  ],
+  "patch_deletions": [
+    "O1",
+    "HO1"
+  ],
+  "charge_sinks": [],
+  "target_charge": 0,
+  "type_mapping": {
+    "ND2": "NC2D1",
+    "HD22": "HCP1",
+    "CG": "CC2O1"
+  },
+  "itp_junction": {
+    "bond_type": 1,
+    "angle_type": 5,
+    "dih_type": 9
+  },
+  "anchors": {
+    "base": {
+      "res_name": "ASN",
+      "primary": "CG",
+      "anchor": "ND2",
+      "ref": "CB",
+      "carbonyl": "OD1"
     },
-    "anchors": {
-        "base": {
-            "res_name": "ASN",
-            "primary": "CG",
-            "anchor": "ND2",
-            "ref": "CB",
-            "carbonyl": "OD1"
-        },
-        "patch": {
-            "res_name": "BGLC", 
-            "anchor": "C1",
-            "leaving": "O1",
-            "secondary": "O5"
-        }
-    },
-    "geometry": {
-        "bond_length": 1.43,
-        "angle_target": 120.0,
-        "omega_target": 180.0,
-        "phi_target": -120.0
-    },
-    "chi_definitions": [
-        ["N", "CA", "CB", "CG"],
-        ["CA", "CB", "CG", "ND2"]
+    "patch": {
+      "res_name": "BGLC",
+      "anchor": "C1",
+      "leaving": "O1",
+      "secondary": "O5"
+    }
+  },
+  "geometry": {
+    "bond_length": 1.43,
+    "angle_target": 120.0,
+    "omega_target": 180.0,
+    "phi_target": -120.0
+  },
+  "chi_definitions": [
+    [
+      "N",
+      "CA",
+      "CB",
+      "CG"
     ],
-    "canonical_rotamers": [
-        [-60, -60],
-        [-60, 60],
-        [180, -60],
-        [180, 60],
-        [60, -60],
-        [60, 60]
+    [
+      "CA",
+      "CB",
+      "CG",
+      "ND2"
     ]
+  ],
+  "canonical_rotamers": [
+    [
+      -60,
+      -60
+    ],
+    [
+      -60,
+      60
+    ],
+    [
+      180,
+      -60
+    ],
+    [
+      180,
+      60
+    ],
+    [
+      60,
+      -60
+    ],
+    [
+      60,
+      60
+    ]
+  ],
+  "charmm_forcefield_files": [
+    "/home/hillel/Data_Files/hillel/charmm36_files/toppar/par_all36_carb.prm",
+    "/home/hillel/Data_Files/hillel/charmm36_files/toppar/par_all36m_prot.prm",
+    "/home/hillel/Data_Files/hillel/charmm36_files/toppar/stream/carb/toppar_all36_carb_glycopeptide.str"
+  ]
 }
