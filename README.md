@@ -37,7 +37,7 @@ MolPatcher uses a conda environment to manage dependencies and install the comma
     conda env create -f environment.yml
     conda activate mol_patcher
     ```
-3. Install the package locally:
+3. **Install the package locally:**
 
   ```bash
   pip install -e .
