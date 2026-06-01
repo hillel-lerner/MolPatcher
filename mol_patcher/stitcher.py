@@ -60,7 +60,7 @@ class Stitcher:
             )
 
         # State tracking
-        self.offset = 100000
+        self.offset = 1000000  # changed offset from 10^5 to 10^6
         self.base_deletions = []
         self.patch_deletions = []
         self.junction_interactions = []
