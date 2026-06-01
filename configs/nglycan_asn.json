@@ -1,7 +1,7 @@
 {
   "system_name": "glycan_aspargine",
   "target_res_name": "ASN",
-  "new_res_name": "ASX",
+  "new_res_name": "ASN",
   "rigid_backbone": [
     "N",
     "CA",
