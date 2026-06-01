@@ -381,7 +381,7 @@ class PatchAligner:
         at_o1 = get_atom(patch_records, p_config["leaving"], patch_res, root_idx)
 
         print(
-            f"DEBUG: Patch parsed as -> ResName: '{patch_records[0].res_name}', Seq: {patch_records[0].res_seq}"
+            f"Patch parsed as -> ResName: '{patch_records[0].res_name}', Seq: {patch_records[0].res_seq}"
         )
 
         # Execute the geometric alignment
@@ -393,14 +393,6 @@ class PatchAligner:
             at4=at_o1,
             target_bond_length=geom["bond_length"],
         )
-        self.set_junction_dihedral(
-            atoms=patch_records,
-            p1=at_od1,
-            p2=at_cg,
-            p3=at_nd2,
-            p4=at_c1,
-            target_dih=geom["omega_target"],
-        )
         self.set_junction_angle(
             atoms=patch_records,
             p1=at_cg,
@@ -408,6 +400,15 @@ class PatchAligner:
             p3=at_c1,
             p_ref=at_cb,
             target_angle=geom["angle_target"],
+        )
+
+        self.set_junction_dihedral(
+            atoms=patch_records,
+            p1=at_cb,
+            p2=at_cg,
+            p3=at_nd2,
+            p4=at_c1,
+            target_dih=geom["omega_target"],
         )
         self.set_junction_dihedral(
             atoms=patch_records,
