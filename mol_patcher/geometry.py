@@ -740,38 +740,81 @@ class StericChecker:
         Calculates a penalty score for the current pose by summing the penetration depth of all overlaps.
         """
         check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
-        environment_atoms = self.static_atoms.copy()
+
+        base_environment = self.static_atoms.copy()
         if limit_to_atoms is not None:
-            environment_atoms.extend(
+            base_environment.extend(
                 [a for a in self.moving_atoms if a not in limit_to_atoms]
             )
 
-        total_penalty = 0.0
-        clash_count = 0
+        env_heavy = [s for s in base_environment if not s.name.strip().startswith("H")]
 
-        for m_atom in check_list:
-            m_element = m_atom.name.strip()[0]
-            m_vdw = self.vdw_radii.get(m_element, 1.50)
+        # if check_list:
+        #    center_atom = check_list[0]
+        #    center_coords = (center_atom.x, center_atom.y, center_atom.z)
 
-            for s_atom in environment_atoms:
-                if m_atom.serial == s_atom.serial:
-                    continue
-                if (m_atom.serial, s_atom.serial) in self.excluded_pairs:
-                    continue
-                if s_atom.name.strip().startswith("H"):
-                    continue
+        #    environment_atoms = [
+        #       s
+        #        for s in base_environment
+        #        if get_distance((s.x, s.y, s.z), center_coords) < 75.0
+        #    ]
+        # else:
+        #    environment_atoms = base_environment
 
-                s_element = s_atom.name.strip()[0]
-                s_vdw = self.vdw_radii.get(s_element, 1.50)
+        # total_penalty = 0.0
+        # clash_count = 0
 
-                actual_dist = get_distance(
-                    (m_atom.x, m_atom.y, m_atom.z), (s_atom.x, s_atom.y, s_atom.z)
-                )
-                threshold = (m_vdw + s_vdw) * self.tolerance
+        # for m_atom in check_list:
+        #    m_element = m_atom.name.strip()[0]
+        #    m_vdw = self.vdw_radii.get(m_element, 1.50)
 
-                if actual_dist < threshold:
-                    total_penalty += threshold - actual_dist
-                    clash_count += 1
+        #    for s_atom in environment_atoms:
+        #        if m_atom.serial == s_atom.serial:
+        #            continue
+        #        if (m_atom.serial, s_atom.serial) in self.excluded_pairs:
+        #            continue
+        #        if s_atom.name.strip().startswith("H"):
+        #            continue
+
+        #        s_element = s_atom.name.strip()[0]
+        #        s_vdw = self.vdw_radii.get(s_element, 1.50)
+
+        #        actual_dist = get_distance(
+        #            (m_atom.x, m_atom.y, m_atom.z), (s_atom.x, s_atom.y, s_atom.z)
+        #        )
+        #        threshold = (m_vdw + s_vdw) * self.tolerance
+
+        #        if actual_dist < threshold:
+        #            total_penalty += threshold - actual_dist
+        #            clash_count += 1
+
+        moving_coords = np.array([[a.x, a.y, a.z] for a in check_list])
+        env_coords = np.array([[s.x, s.y, s.z] for s in env_heavy])
+
+        m_vdw = np.array(
+            [self.vdw_radii.get(a.name.strip()[0], 1.50) for a in check_list]
+        )
+        e_vdw = np.array(
+            [self.vdw_radii.get(s.name.strip()[0], 1.50) for s in env_heavy]
+        )
+
+        diff = moving_coords[:, np.newaxis, :] - env_coords[np.newaxis, :, :]
+        distances = np.linalg.norm(diff, axis=2)
+
+        thresholds = (m_vdw[:, np.newaxis] + e_vdw[np.newaxis, :]) * self.tolerance
+
+        penalties = np.where(distances < thresholds, thresholds - distances, 0.0)
+
+        for i, m_atom in enumerate(check_list):
+            for j, s_atom in enumerate(env_heavy):
+                if (
+                    m_atom.serial == s_atom.serial
+                    or (m_atom.serial, s_atom.serial) in self.excluded_pairs
+                ):
+                    penalties[i, j] = 0.0
+
+        total_penalty = np.sum(penalties)
+        clash_count = np.count_nonzero(penalties)
 
         return total_penalty, clash_count
 
