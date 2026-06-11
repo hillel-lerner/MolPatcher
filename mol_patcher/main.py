@@ -2,9 +2,8 @@ import argparse
 import os
 import shutil
 import json
-
+from dataclasses import replace
 from networkx import config
-
 from mol_patcher.stitcher import Stitcher, Patchloader
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
@@ -29,6 +28,7 @@ def run_patch(
     config_file,
     junction_config,
     copy_ff=None,
+    scr_itp=None,
 ):
     """
     Orchestrates the entire MolPatcher pipeline: loading data, aligning the patch,
@@ -163,6 +163,57 @@ def run_patch(
         next(r for r in valid_patch_atoms if r.name.strip() == name)
         for name in junction_config["patch_anchors"]
     ]
+
+    if scr_itp:
+        print("Merging docked-SCR topology into patch")
+
+        scr_top_parser = TopologyParser()
+        _, scr_atoms, scr_bonds, scr_pairs, scr_angles, scr_dihs = (
+            scr_top_parser.read_file(scr_itp)
+        )
+
+        glycan_offset = len(patch_mol.atoms)
+
+        for a in scr_atoms:
+            a.number += glycan_offset
+            patch_mol.atoms.append(a)
+
+        # shift internal connections and append to patch_mol topology lists
+        patch_mol.bonds.extend(
+            [
+                replace(b, a1=b.a1 + glycan_offset, a2=b.a2 + glycan_offset)
+                for b in scr_bonds
+            ]
+        )
+        patch_mol.pairs.extend(
+            [
+                replace(p, a1=p.a1 + glycan_offset, a2=p.a2 + glycan_offset)
+                for p in scr_pairs
+            ]
+        )
+        patch_mol.angles.extend(
+            [
+                replace(
+                    ang,
+                    a1=ang.a1 + glycan_offset,
+                    a2=ang.a2 + glycan_offset,
+                    a3=ang.a3 + glycan_offset,
+                )
+                for ang in scr_angles
+            ]
+        )
+        patch_mol.dihs.extend(
+            [
+                replace(
+                    d,
+                    a1=d.a1 + glycan_offset,
+                    a2=d.a2 + glycan_offset,
+                    a3=d.a3 + glycan_offset,
+                    a4=d.a4 + glycan_offset,
+                )
+                for d in scr_dihs
+            ]
+        )
 
     # Align the Patch
     aligner = PatchAligner(valid_patch_atoms, patch_anchors, target_anchors)
@@ -364,6 +415,13 @@ def main():
         default=[],
         help="Optional list of additional forcefield files to copy to toppar directory",
     )
+    parser.add_argument(
+        "-scr",
+        "--scr_itp",
+        type=str,
+        default=None,
+        help="Optional path to a separate topology (itp) file for an patch involving an SCR bound to a glycan.",
+    )
 
     args = parser.parse_args()
     config_path = args.config
@@ -414,6 +472,7 @@ def main():
         config_file=config_basename,
         junction_config=junction_config,
         copy_ff=args.copy_ff,
+        scr_itp=os.path.abspath(args.scr_itp) if args.scr_itp else None,
     )
 
 

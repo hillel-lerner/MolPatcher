@@ -1,5 +1,5 @@
 from mol_patcher.utilities import get_dihedral
-from mol_patcher.geometry import StericChecker, rotate_dihedral, random_rot
+from mol_patcher.geometry import StericChecker, rotate_dihedral
 import networkx as nx
 import numpy as np
 import sys
@@ -123,10 +123,75 @@ class SweepConductor:
         )
 
     def optimize(self, moving_atoms, static_atoms):
+
+        amino_acids = {
+            "ALA",
+            "ARG",
+            "ASN",
+            "ASP",
+            "CYS",
+            "GLU",
+            "GLN",
+            "GLY",
+            "HIS",
+            "ILE",
+            "LEU",
+            "LYS",
+            "MET",
+            "PHE",
+            "PRO",
+            "SER",
+            "THR",
+            "TRP",
+            "TYR",
+            "VAL",
+            "HSD",
+            "HSE",
+            "HSP",
+            "GLH",
+            "ASH",
+            "CYX",
+        }
+
+        # Create a temporary virtual edge if the glycan is bound to an scr. (residue name is LIG)
+        scr_atoms = [a for a in self.mol.records if a.res_name.strip() == "LIG"]
+        glycan_anchor_idx = None
+        scr_anchor_idx = None
+
+        if scr_atoms and moving_atoms:
+            obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
+
+            hinge_idx = obj_to_idx[id(moving_atoms[0])]
+            covalent_tree = nx.node_connected_component(self.graph.nx_graph, hinge_idx)
+
+            for atom in moving_atoms:
+                idx = obj_to_idx[id(atom)]
+
+                if (
+                    atom.res_name.strip() != "LIG"
+                    and atom.res_name.strip() not in amino_acids
+                ):
+                    if idx in covalent_tree:
+                        glycan_anchor_idx = idx
+                        print(
+                            f"DEBUG: Successfully anchored SCR to {atom.name.strip()} of {atom.res_name.strip()}"
+                        )
+                        break
+
+            if glycan_anchor_idx is not None:
+                scr_anchor_idx = obj_to_idx[id(scr_atoms[0])]
+                self.graph.nx_graph.add_edge(glycan_anchor_idx, scr_anchor_idx)
+
+            moving_atoms.extend(scr_atoms)
+            static_atoms = [a for a in static_atoms if a.res_name.strip() != "LIG"]
+
         checker = StericChecker(self.graph, moving_atoms, static_atoms)
 
         print("\nStarting Sweep...")
         penalty, pose, coords = self.prot_sweeper.get_best_pose(checker, moving_atoms)
+
+        if glycan_anchor_idx is not None and scr_anchor_idx is not None:
+            self.graph.nx_graph.remove_edge(glycan_anchor_idx, scr_anchor_idx)
 
         if coords is not None:
             print("\nSUCCESS: Applied best global configuration.")
@@ -142,59 +207,3 @@ class SweepConductor:
         else:
             print("\nFAILURE: Could not calculate any poses.")
             return False
-
-    def rotate_and_dock(self, scr_mol, receptor_atoms, max_dist_nm=1.5, iters=5000):
-        """
-        Orchestates (con-covalent) Monte Carlo docking of an SCR
-        """
-
-        if not receptor_atoms or not scr_mol.records:
-            print("Error: Empty atoms lists")
-            return False
-
-        checker = StericChecker(
-            self.graph, scr_mol.records, self.mol.records, docking_target=receptor_atoms
-        )
-
-        glycan_coords = np.array([[a.x, a.y, a.z] for a in receptor_atoms])
-        centroid = np.mean(glycan_coords, axis=0)
-
-        base_scr_coords = np.array([[a.x, a.y, a.z] for a in scr_mol.records])
-
-        best_penalty = float("inf")
-        best_coords = None
-
-        spinner = ["|", "/", "-", "\\"]
-
-        for _ in range(iters):
-            char = spinner[(_ // 30) % 4]
-            sys.stdout.write(
-                f"\rDocking SCR near Glycan Centroid [{centroid[0]:.2f}, {centroid[1]:.2f}, {centroid[2]:.2f}]... {char}"
-            )
-            sys.stdout.flush()
-            sys.stdout.write("\b")
-
-            temp_coords = random_rot(
-                scr_mol.records, centroid, base_scr_coords, max_dist_nm
-            )
-
-            score = checker.score_docking(limit_to_atoms=scr_mol.records)
-
-            if score < best_penalty:
-                best_penalty = score
-                best_coords = temp_coords
-
-        if best_coords is not None:
-            for i, atom in enumerate(scr_mol.records):
-                atom.x, atom.y, atom.z = best_coords[i]
-
-            final_clash, final_contacts = checker.score_pose(
-                limit_to_atoms=scr_mol.records
-            )
-
-            print("SCR Docking complete.")
-            print(f"    -> Interface Contacts: {final_contacts} atom pairs")
-            print(f"    -> Intermolecular Clash: {final_clash:.2f} Å (Total Depth)")
-            return True
-        else:
-            print("Error: Could not calculate valid poses")
