@@ -58,6 +58,7 @@ Once installed, you can execute the pipeline using the `molpatcher` command.
 | `-config` | Path to the JSON configuration template. | **Yes** | String (filepath) |
 | `-o`, `--outdir` | Custom directory for outputs. | No | String (filepath, Default: `./`) |
 | `-ff`, `--forcefield` | Additional forcefield files to copy into the output `toppar/` directory. | No | `nargs=*` (multiple filepaths separated by spaces)|
+| `-scr`, `--scr_itp` | Topology file for a pre-bound SCR (attached to a glycan). | No | `nargs=*` String (filepath) |
 
 ### Basic Command Structure
 
