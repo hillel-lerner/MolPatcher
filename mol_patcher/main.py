@@ -275,19 +275,22 @@ def run_patch(
         stitched_mol.records, buffer_percent=0.33, min_buffer_nm=3.0
     )
 
-    ff_refs = junction_config["charmm_forcefield_files"]
-    print("Scraping junction parameters from CHARMM database...")
-    ff_scraper = ForceField(ff_refs)
-    ff_scraper.read_database()
+    ff_refs = junction_config.get("charmm_forcefield_files", [])
+    ff_scraper = None
 
-    ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
-    ff_scraper.extract_junction_params(ff_requests)
-    junction_ff_path = os.path.join(
-        toppar_dir, f"junction_ff_{target_res.lower()}_{base_resid}.itp"
-    )
-    ff_scraper.write_ff(junction_ff_path)
+    if ff_refs:
+        print("Scraping junction parameters from CHARMM database...")
+        ff_scraper = ForceField(ff_refs)
+        ff_scraper.read_database()
 
-    print(f"   --> Wrote junction parameters to: {junction_ff_path}")
+        ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
+        ff_scraper.extract_junction_params(ff_requests)
+        junction_ff_path = os.path.join(
+            toppar_dir, f"junction_ff_{target_res.lower()}_{base_resid}.itp"
+        )
+        ff_scraper.write_ff(junction_ff_path)
+
+        print(f"   --> Wrote junction parameters to: {junction_ff_path}")
 
     real_mol_name = stitched_mol.name
     if stitched_mol.moltype_section:
