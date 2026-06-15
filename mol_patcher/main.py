@@ -370,7 +370,7 @@ def run_patch(
         log.write("\n")
 
         log.write("--- JUNCTION FORCEFIELD PARAMETERS ADDED ---\n")
-        if hasattr(ff_scraper, "junction_output"):
+        if ff_scraper and hasattr(ff_scraper, "junction_output"):
             params_found = False
             for section, lines in ff_scraper.junction_output.items():
                 if lines:
