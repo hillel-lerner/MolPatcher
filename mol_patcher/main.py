@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import shutil
 import json
 from dataclasses import replace
@@ -24,7 +25,6 @@ def run_patch(
     base_chain,
     outdir,
     itp_chains,
-    config_file,
     junction_config,
     copy_ff=None,
     scr_itp=None,
@@ -65,7 +65,7 @@ def run_patch(
     """
 
     if copy_ff is None:
-        copy_ff
+        copy_ff = []
 
     target_res = junction_config["target_res_name"]
     new_res = junction_config["new_res_name"]
@@ -296,19 +296,22 @@ def run_patch(
         stitched_mol.records, buffer_percent=0.33, min_buffer_nm=3.0
     )
 
-    ff_refs = junction_config["charmm_forcefield_files"]
-    print("Scraping junction parameters from CHARMM database...")
-    ff_scraper = ForceField(ff_refs)
-    ff_scraper.read_database()
+    ff_refs = junction_config.get("charmm_forcefield_files", [])
+    ff_scraper = None
 
-    ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
-    ff_scraper.extract_junction_params(ff_requests)
-    junction_ff_path = os.path.join(
-        toppar_dir, f"junction_ff_{target_res.lower()}_{base_resid}.itp"
-    )
-    ff_scraper.write_ff(junction_ff_path)
+    if ff_refs:
+        print("Scraping junction parameters from CHARMM database...")
+        ff_scraper = ForceField(ff_refs)
+        ff_scraper.read_database()
 
-    print(f"   --> Wrote junction parameters to: {junction_ff_path}")
+        ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
+        ff_scraper.extract_junction_params(ff_requests)
+        junction_ff_path = os.path.join(
+            toppar_dir, f"junction_ff_{target_res.lower()}_{base_resid}.itp"
+        )
+        ff_scraper.write_ff(junction_ff_path)
+
+        print(f"   --> Wrote junction parameters to: {junction_ff_path}")
 
     real_mol_name = stitched_mol.name
     if stitched_mol.moltype_section:
@@ -363,7 +366,7 @@ def run_patch(
         log.write(
             "2. Add the following to the [ molecules ] directive at the bottom of your .top file:\n"
         )
-        log.write(f"   {stitched_mol.name:<15} 1\n\n")
+        log.write(f"   {real_mol_name:<15} 1\n\n")
 
         log.write("--- PERIODIC BOUNDARY CONDITIONS (PBC) ---\n")
         log.write(f"Molecule Max Diagonal : {round(box_size - applied_buffer, 3)} nm\n")
@@ -387,18 +390,17 @@ def run_patch(
             log.write("Preset Geometry  : None (Flexible alignment used)\n")
         log.write("\n")
 
-        log.write("--- JUNCTION FORCEFIELD PARAMETERS ADDED ---\n")
-        if hasattr(ff_scraper, "junction_output"):
-            params_found = False
+        if ff_scraper and hasattr(ff_scraper, "junction_output"):
+            header_written = False
             for section, lines in ff_scraper.junction_output.items():
                 if lines:
-                    params_found = True
+                    if not header_written:
+                        log.write("--- JUNCTION FORCEFIELD PARAMETERS ADDED ---\n")
+                        header_written = True
                     log.write(f"[ {section} ]\n")
                     for line in sorted(list(lines)):
                         log.write(line)
                     log.write("\n")
-            if not params_found:
-                log.write("No junction parameters were extracted or added.\n\n")
 
     print(f"   --> Wrote execution log to: {log_file_path}")
 
@@ -406,6 +408,7 @@ def run_patch(
 def main():
     """
     Command-line entry. Parses CLI arguments and triggers the run_patch pipeline.
+    :return: None
     """
     parser = argparse.ArgumentParser(
         description="Patch a ligand into a protein residue."
@@ -465,8 +468,6 @@ def main():
     with open(config_path, "r") as f:
         junction_config = json.load(f)
 
-    config_basename = os.path.basename(config_path)
-
     base_pdb_abs = os.path.abspath(args.base[0])
     base_itp_abs = os.path.abspath(args.base[1])
     base_res = int(args.base[2])
@@ -479,6 +480,18 @@ def main():
     patch_res = int(args.patch[2]) if len(args.patch) > 2 else None
     patch_chain = args.patch[3] if len(args.patch) > 3 else " "
 
+    # Validation of input files
+    input_files = [base_pdb_abs, base_itp_abs, patch_pdb_abs, patch_itp_abs]
+    if args.scr_itp:
+        input_files.append(os.path.abspath(args.scr_itp))
+
+    missing_files = [f for f in input_files if not os.path.exists(f)]
+    if missing_files:
+        print("\nError: The following required input files could not be found:")
+        for f in missing_files:
+            print(f"  - {f}")
+        sys.exit(1)
+
     run_patch(
         patch_pdb=patch_pdb_abs,
         patch_itp=patch_itp_abs,
@@ -490,7 +503,6 @@ def main():
         base_chain=base_chain,
         outdir=args.outdir,
         itp_chains=[base_chain.strip()] if base_chain.strip() else [],
-        config_file=config_basename,
         junction_config=junction_config,
         copy_ff=args.copy_ff,
         scr_itp=os.path.abspath(args.scr_itp) if args.scr_itp else None,
