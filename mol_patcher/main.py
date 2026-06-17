@@ -33,13 +33,35 @@ def run_patch(
     Orchestrates the entire MolPatcher pipeline: loading data, aligning the patch,
     stitching topologies, performing rotamer optimization, and saving final outputs.
 
-    :param pdb_file: (str) Absolute path to the input PDB file.
-    :param res_id: (int) The target residue ID for the patch.
-    :param chain: (str) The target chain ID.
-    :param itp_file: (str) Absolute path to the input ITP topology file.
-    :param outdir: (str) Directory where the results folder will be created.
-    :param copy_ff: (list) Optional list of forcefield files to copy to the output directory.
-    :return: None. Writes the patched PDB and ITP files to disk.
+    :param patch_pdb: Absolute path to the patch coordinate file.
+    :type patch_pdb: str
+    :param patch_itp: Absolute path to the patch topology file.
+    :type patch_itp: str
+    :param base_pdb: Absolute path to the base protein coordinate file.
+    :type base_pdb: str
+    :param base_itp: Absolute path to the base protein topology file.
+    :type base_itp: str
+    :param patch_resid: The starting residue sequence number of the patch (if applicable).
+    :type patch_resid: int or None
+    :param base_resid: The target attachment residue on the base protein.
+    :type base_resid: int
+    :param patch_chain: The target chain ID for the patch.
+    :type patch_chain: str
+    :param base_chain: The target chain ID on the base protein.
+    :type base_chain: str
+    :param outdir: Directory where the output folder will be generated.
+    :type outdir: str
+    :param itp_chains: Chain limits for topology mapping.
+    :type itp_chains: list
+    :param config_file: The name of the configuration template file.
+    :type config_file: str
+    :param junction_config: The loaded JSON configuration dictionary.
+    :type junction_config: dict
+    :param copy_ff: Optional list of forcefield files to migrate to the output directory.
+    :type copy_ff: list, optional
+    :param scr_itp: Optional path to an SCR topology file to merge.
+    :type scr_itp: str, optional
+    :return: None. Writes outputs directly to disk.
     """
 
     if copy_ff is None:
