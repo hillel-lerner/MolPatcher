@@ -1,44 +1,15 @@
+"""
+Executes the topological and geometric surgery required to attach patch molecules
+to base protein targets. Handles file loading, atom deletion, index offsetting,
+and electrostatic balancing.
+"""
+
 import os
-import numpy as np
 from dataclasses import replace
 from .geometry import MolGraph
-from .utilities import get_distance
 from .topology_tools import reindex_topology
-from .mol_record import Mol, ItpBond, ItpAngle, ItpDih, ItpPair, ItpAtom
-from .pdb_io import PdbParser
+from .mol_record import Mol, ItpBond, ItpAngle, ItpDih, ItpPair
 import json
-
-
-class Patchloader:
-    """
-    Locates and loads the standard patch ligand PDB and ITP files into Mol objects for processing.
-    """
-
-    def __init__(self, config_file):
-        self.f = os.path.abspath(__file__)
-        self.mol_patcher_dir = os.path.dirname(self.f)
-        self.root = os.path.dirname(self.mol_patcher_dir)
-        self.pdb_dir = os.path.join(self.root, "pdbs")
-        self.top_dir = os.path.join(self.root, "topology_files")
-        self.configs = os.path.join(self.root, "configs", config_file)
-
-        with open(self.configs, "r") as file:
-            self.setup = json.load(file)
-
-    def get_pfp_pdb(self):
-        patch_pdb_name = self.setup["patch_files"]["pdb"]
-        patch_pdb_path = os.path.join(self.pdb_dir, patch_pdb_name)
-        parser = PdbParser()
-        _, patch_atoms, _ = parser.read_file(patch_pdb_path)
-        print(f"patch pdb: {patch_pdb_path}")
-        return patch_atoms
-
-    def get_pfp_itp(self, mol_obj):
-        # Loads the ITP topology into an existing Mol object.
-        patch_itp_name = self.setup["patch_files"]["itp"]
-        patch_itp_path = os.path.join(self.top_dir, patch_itp_name)
-        mol_obj.load_itp(patch_itp_path)
-        print(f"Patch itp: {patch_itp_path}")
 
 
 class Stitcher:
@@ -48,6 +19,22 @@ class Stitcher:
     """
 
     def __init__(self, base_mol, patch_mol, target_res_id, config, itp_chains=None):
+        """
+        Initializes the Stitcher and validates the configuration.
+
+        :param base_mol: The unpatched base protein molecule.
+        :type base_mol: Mol
+        :param patch_mol: The patch molecule to be attached.
+        :type patch_mol: Mol
+        :param target_res_id: The residue sequence number of the attachment site.
+        :type target_res_id: int
+        :param config: The configuration dictionary for the junction parameters.
+        :type config: dict
+        :param itp_chains: A list of chain identifiers to restrict topology mapping, defaults to None.
+        :type itp_chains: list, optional
+        :raises ValueError: If the base bridge is not listed in the base anchors.
+        """
+
         self.base = base_mol
         self.patch = patch_mol
         self.res_id = target_res_id
@@ -60,7 +47,7 @@ class Stitcher:
             )
 
         # State tracking
-        self.offset = 1000000  # changed offset from 10^5 to 10^6
+        self.offset = 1000000
         self.base_deletions = []
         self.patch_deletions = []
         self.junction_interactions = []
@@ -75,11 +62,16 @@ class Stitcher:
         """
         Uses the pre-built molecular connectivity graph to identify hydrogens bonded to specific anchors.
 
-        :param mol: (Mol) The molecule object containing the records.
-        :param mol_graph: (MolGraph) The connectivity matrix/graph of the molecule.
-        :param anchors: (list) PdbRecord objects representing the anchor atoms.
-        :return: (list) A list of PdbRecord objects representing the bonded hydrogens to be deleted.
+        :param mol: The molecule object containing the coordinate records.
+        :type mol: Mol
+        :param mol_graph: The connectivity matrix/graph of the molecule.
+        :type mol_graph: MolGraph
+        :param anchors: Objects representing the anchor atoms.
+        :type anchors: list
+        :return: A list of PdbRecord objects representing the bonded hydrogens to be deleted.
+        :rtype: list
         """
+
         h_to_delete = []
         for anchor in anchors:
             # Find the exact index of the anchor in the molecule's records using its serial number
@@ -98,11 +90,18 @@ class Stitcher:
     @staticmethod
     def _build_pdb_to_itp_map(records, atoms, itp_chains=None):
         """
-        Creates a dictionary mapping the Python id() of a PdbRecord
-        to its corresponding ItpAtom object. Filters PDB records to
-        match the scope of the provided ITP chains.
+        Creates a dictionary mapping the Python id() of a PdbRecord to its corresponding ItpAtom object.
+
+        :param records: The PdbRecord objects from the coordinate file.
+        :type records: list
+        :param atoms: The ItpAtom objects from the topology file.
+        :type atoms: list
+        :param itp_chains: Chain identifiers to limit the scope of the mapping, defaults to None.
+        :type itp_chains: list, optional
+        :return: A dictionary bridging the physical coordinates to the topological indices.
+        :rtype: dict
         """
-        # Build ITP blocks
+
         itp_blocks = []
         current_itp_res = None
         for a in atoms:
@@ -111,12 +110,10 @@ class Stitcher:
                 current_itp_res = a.res_n
             itp_blocks[-1][a.atom.strip()] = a
 
-        # Build Scoped PDB blocks (based on chains)
         scoped_pdb_blocks = []
         current_pdb_res = None
 
         for r in records:
-            # Skip records that aren't part of the ITP file's scope
             if itp_chains and r.chain.strip() not in itp_chains:
                 continue
 
@@ -126,7 +123,6 @@ class Stitcher:
                 current_pdb_res = res_id
             scoped_pdb_blocks[-1][r.name.strip()] = r
 
-        # Dynamic sequence alignment
         mapping = {}
         i, j = 0, 0
 
@@ -134,7 +130,6 @@ class Stitcher:
             p_res = list(scoped_pdb_blocks[i].values())[0].res_name.strip()
             i_res = list(itp_blocks[j].values())[0].res.strip()
 
-            # Match first 2 chars (LYS/LYX, HIS/HSD)
             if p_res[:2] == i_res[:2]:
                 for atom_name, record_obj in scoped_pdb_blocks[i].items():
                     if atom_name in itp_blocks[j]:
@@ -142,11 +137,8 @@ class Stitcher:
                 i += 1
                 j += 1
             else:
-                # Mismatch if the sequences diverge.
-                # To prevent false matches, scan ahead in BOTH files to find a unique fingerprint: 3 consecutive residues that perfectly match.
                 found_sync = False
 
-                # Check up to 40 residues ahead in both files
                 for offset_i in range(40):
                     if i + offset_i >= len(scoped_pdb_blocks):
                         break
@@ -154,7 +146,6 @@ class Stitcher:
                         if j + offset_j >= len(itp_blocks):
                             break
 
-                        # Validate a 3-residue sequence
                         sync_length = min(
                             3,
                             len(scoped_pdb_blocks) - (i + offset_i),
@@ -173,7 +164,6 @@ class Stitcher:
                                 is_match = False
                                 break
 
-                        # If the fingerprint matches, lock the alignment and break
                         if is_match and sync_length > 0:
                             i = i + offset_i
                             j = j + offset_j
@@ -183,7 +173,6 @@ class Stitcher:
                     if found_sync:
                         break
 
-                # If no sequence fingerprint can be found, safely advance PDB to prevent infinite loops
                 if not found_sync:
                     i += 1
 
@@ -198,15 +187,20 @@ class Stitcher:
         stitched_map,
     ):
         """
-        Uses the connectivity matrix to identify and generate missing angle and dihedral
-        topology parameters across the newly formed junction bond.
+        Uses the connectivity matrix to identify and generate missing angle and dihedral parameters.
 
-        :param stitched_mol: (Mol) The combined molecule object.
-        :param stitched_graph: (MolGraph) The connectivity graph of the combined molecule.
-        :param base_anchor_idx: (int) The Python list index of the base protein anchor.
-        :param patch_anchor_idx: (int) The Python list index of the patch anchor.
-        :param stitched_map: (dict) The map relating the pdb indices to the itp atom indices
-        :return: (tuple) Two lists containing the angle tuples and dihedral tuples to be appended.
+        :param stitched_mol: The combined molecule object.
+        :type stitched_mol: Mol
+        :param stitched_graph: The connectivity graph of the combined molecule.
+        :type stitched_graph: MolGraph
+        :param base_anchor_idx: The Python list index of the base protein anchor.
+        :type base_anchor_idx: int
+        :param patch_anchor_idx: The Python list index of the patch anchor.
+        :type patch_anchor_idx: int
+        :param stitched_map: The dictionary bridging PDB memory IDs to ITP atom objects.
+        :type stitched_map: dict
+        :return: Two lists containing the angle tuples and dihedral tuples to be generated.
+        :rtype: tuple of (list, list)
         """
 
         base_neighbors = list(stitched_graph.nx_graph.neighbors(base_anchor_idx))
@@ -215,7 +209,6 @@ class Stitcher:
         base_exclusive = [n for n in base_neighbors if n != patch_anchor_idx]
         patch_exclusive = [n for n in patch_neighbors if n != base_anchor_idx]
 
-        # Translate a PDB graph index into an ITP number
         def to_itp(pdb_idx):
             record = stitched_mol.records[pdb_idx]
             mapped_atom = stitched_map.get(id(record))
@@ -227,7 +220,6 @@ class Stitcher:
                 if a.res_n == record.res_seq and a.atom.strip() == record.name.strip():
                     return a.number
 
-        # Translate the bridge atom indices
         base_itp = to_itp(base_anchor_idx)
         patch_itp = to_itp(patch_anchor_idx)
 
@@ -244,17 +236,42 @@ class Stitcher:
 
         return angles_to_check, dihedrals_to_check
 
+    def _shift_topology_indices(self, top_list, offset):
+        """
+        Safely shifts the internal indices of GROMACS topology objects.
+
+        :param top_list: A list of dataclass objects representing bonds, pairs, angles, or dihedrals.
+        :type top_list: list
+        :param offset: The integer to add to the existing indices.
+        :type offset: int
+        :return: A new list of shifted topology objects.
+        :rtype: list
+        """
+
+        shifted = []
+        for item in top_list:
+            kwargs = {
+                attr: getattr(item, attr) + offset
+                for attr in ["a1", "a2", "a3", "a4"]
+                if hasattr(item, attr)
+            }
+            shifted.append(replace(item, **kwargs))
+        return shifted
+
     def stitch_molecules(self, aligned_patch_atoms, target_reference, target_anchors):
         """
         Executes the full attachment pipeline: deletes overlapping atoms, offsets topologies,
         splices lists, generates junction bonds, and balances electrostatics.
 
-        :param aligned_patch_atoms: (list) PdbRecord objects of the patch translated to the target site.
-        :param target_reference: (PdbRecord) The primary target anchor used for chain/residue designation.
-        :param target_anchors: (list) PdbRecord objects of the protein attachment site.
-        :param patch_anchor_names: (list) String names of the patch atoms that will overlap and be deleted.
-        :param patch_bridge_name: (str) String name of the patch atom forming the new bond.
-        :return: (Mol) The final stitched, reindexed, and charge-balanced molecule.
+        :param aligned_patch_atoms: PdbRecord objects of the patch translated to the target site.
+        :type aligned_patch_atoms: list
+        :param target_reference: The primary target anchor used for chain/residue designation.
+        :type target_reference: PdbRecord
+        :param target_anchors: PdbRecord objects of the protein attachment site.
+        :type target_anchors: list
+        :raises ValueError: If the bridging anchor atom cannot be found.
+        :return: A tuple containing the final stitched Mol, the new MolGraph, and the junction interaction log.
+        :rtype: tuple of (Mol, MolGraph, dict)
         """
 
         # VARIABLES (JSON)
@@ -270,8 +287,6 @@ class Stitcher:
         new_res_name = self.config["new_res_name"]
 
         anchor_serial = target_anchors[2].serial
-        anchor_res_seq = target_anchors[2].res_seq
-        anchor_name = target_anchors[2].name.strip()
 
         # MAPPING AND DELETION LISTS
         base_map = self._build_pdb_to_itp_map(
@@ -333,8 +348,6 @@ class Stitcher:
         filter_patch_records, filter_patch_atoms = [], []
         dynamic_seg_id = target_anchors[0].seg_id
 
-        # Append patch atoms with their new designation
-        # Find the highest residue number currently in the target chain if for new residues from the patch
         max_chain_res = max(
             (
                 r.res_seq
@@ -344,7 +357,6 @@ class Stitcher:
             default=target_reference.res_seq,
         )
 
-        # Append patch atoms with their new designation
         for i, record in enumerate(aligned_patch_atoms):
             if (
                 record not in self.patch_deletions
@@ -352,8 +364,6 @@ class Stitcher:
             ):
                 original_atom = self.patch.atoms[i]
 
-                # If merging into one residue (PFP), squash the name and number to the anchor site.
-                # If appending a glycan, keep the sugar name and add it to the END of the chain sequence.
                 if patch_merged_name:
                     apply_res_name = new_res_name
                     apply_res_seq = target_reference.res_seq
@@ -394,7 +404,6 @@ class Stitcher:
         )
         valid_names = valid_names_str.split()
 
-        # Rename the preserved base protein atoms at the target site
         for r in final_records:
             if (
                 r.res_seq == target_reference.res_seq
@@ -406,35 +415,11 @@ class Stitcher:
         for atom in filter_patch_atoms:
             atom.number += self.offset
 
-        patch_bonds = [
-            replace(b, a1=b.a1 + self.offset, a2=b.a2 + self.offset)
-            for b in self.patch.bonds
-        ]
-        patch_pairs = [
-            replace(p, a1=p.a1 + self.offset, a2=p.a2 + self.offset)
-            for p in self.patch.pairs
-        ]
-        patch_angles = [
-            replace(
-                ang,
-                a1=ang.a1 + self.offset,
-                a2=ang.a2 + self.offset,
-                a3=ang.a3 + self.offset,
-            )
-            for ang in self.patch.angles
-        ]
-        patch_dihs = [
-            replace(
-                d,
-                a1=d.a1 + self.offset,
-                a2=d.a2 + self.offset,
-                a3=d.a3 + self.offset,
-                a4=d.a4 + self.offset,
-            )
-            for d in self.patch.dihs
-        ]
+        patch_bonds = self._shift_topology_indices(self.patch.bonds, self.offset)
+        patch_pairs = self._shift_topology_indices(self.patch.pairs, self.offset)
+        patch_angles = self._shift_topology_indices(self.patch.angles, self.offset)
+        patch_dihs = self._shift_topology_indices(self.patch.dihs, self.offset)
 
-        # Splicing and ITP sync
         if patch_merged_name:
             insert_idx_records = (
                 next(
@@ -443,7 +428,6 @@ class Stitcher:
                 + 1
             )
         else:
-            # CHANGED: Finds the max index of the TARGET RESIDUE instead of the whole chain
             last_res_idx = max(
                 i
                 for i, r in enumerate(final_records)
@@ -454,7 +438,6 @@ class Stitcher:
 
         final_records[insert_idx_records:insert_idx_records] = filter_patch_records
 
-        # Sync base ITP residue numbers to the PDB and track old numbers
         for a in final_atoms:
             rec = old_itp_to_pdb.get(a.number)
             if rec:
@@ -509,7 +492,6 @@ class Stitcher:
             self.base.dihs + patch_dihs,
         )
 
-        # JUNCTION INTERACTIONS AND TOPOLOGY REINDEXING
         junction_cfg = self.config.get("itp_junction", {})
         b_type = junction_cfg.get("bond_type", 1)
         a_type = junction_cfg.get("angle_type", 5)
@@ -527,7 +509,6 @@ class Stitcher:
 
         stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, b_type))
 
-        # Initialize the remap dictionary
         remap_dict = {}
         if patch_merged_name:
             patch_n_idx = (
@@ -540,19 +521,15 @@ class Stitcher:
             )
             remap_dict = {patch_n_idx: anch_2_itp}
 
-        # Capture pre-reindex mapping
         pre_reindex_mapping = {}
         for old_num, record in old_itp_to_pdb.items():
             pre_reindex_mapping[old_num] = record
 
         for record, original_atom in zip(filter_patch_records, filter_patch_atoms):
-            # original_atom.number still has the 100000 offset here
             pre_reindex_mapping[original_atom.number] = record
 
-        # REINDEX THE TOPOLOGY (Mods atom.number in place)
         index_map = reindex_topology(stitched_mol, remap_dict)
 
-        # BUILD LOOKUP DICTIONARIES
         stitched_itp_to_pdb = {}
         stitched_pdb_to_itp = {}
 
@@ -562,7 +539,6 @@ class Stitcher:
                 stitched_itp_to_pdb[new_num] = record
                 stitched_pdb_to_itp[id(record)] = stitched_mol.atoms[new_num - 1]
 
-        # BUILD THE GRAPH
         stitched_graph = MolGraph(stitched_mol, itp_to_pdb_map=stitched_itp_to_pdb)
 
         if stitched_graph.is_distance_based:
@@ -596,8 +572,6 @@ class Stitcher:
             and r.chain.strip() == target_reference.chain.strip()
         )
 
-        # GENERATE BRIDGE TOPOLOGY
-        # (Pass stitched_pdb_to_itp to ensure the dihedral builder grabs the correct atoms)
         angles_to_check, dihedrals_to_check = self.build_bridge_topol(
             stitched_mol, stitched_graph, base_idx, patch_idx, stitched_pdb_to_itp
         )
@@ -617,7 +591,6 @@ class Stitcher:
         stitched_mol.angles.sort(key=lambda x: x.a1)
         stitched_mol.dihs.sort(key=lambda x: x.a1)
 
-        # ELECTROSTATICS & TYPING
         target_chg = self.config.get("target_charge", 0)
         stitched_mol = self.update_atom_types(
             stitched_mol,
@@ -645,7 +618,20 @@ class Stitcher:
     def update_atom_types(
         self, stitched_mol, type_map, stitched_itp_to_pdb, target_chain
     ):
-        """Updates specific atom types at the junction exclusively on the target chain."""
+        """
+        Updates specific atom types at the junction exclusively on the target chain.
+
+        :param stitched_mol: The newly merged molecule object.
+        :type stitched_mol: Mol
+        :param type_map: A dictionary defining the old type to new type conversions.
+        :type type_map: dict
+        :param stitched_itp_to_pdb: Dictionary mapping ITP atoms back to PDB coordinates.
+        :type stitched_itp_to_pdb: dict
+        :param target_chain: The specific chain ID being modified.
+        :type target_chain: str
+        :return: The molecule with updated atom types.
+        :rtype: Mol
+        """
 
         self.retyped_indices = set()
 
@@ -666,17 +652,20 @@ class Stitcher:
         self, stitched_mol, stitched_itp_to_pdb, target_chain, target_charge=0
     ):
         """
-        Balances the electrostatic charge of the patched residue to ensure a perfect
-        integer net charge. It updates the heavy anchor atoms to match the patch
-        definitions and distributes the resulting fractional deficit across specific
-        hydrogen sinks.
+        Balances the electrostatic charge of the patched residue to ensure an integer net charge.
 
-        :param stitched_mol: (Mol) The combined molecule object containing the new junction.
-        :return: (Mol) The molecule with updated and balanced fractional charges.
+        :param stitched_mol: The combined molecule object containing the new junction.
+        :type stitched_mol: Mol
+        :param stitched_itp_to_pdb: Dictionary mapping ITP atoms back to PDB coordinates.
+        :type stitched_itp_to_pdb: dict
+        :param target_chain: The specific chain ID being modified.
+        :type target_chain: str
+        :param target_charge: The desired net charge of the residue, defaults to 0.
+        :type target_charge: int, optional
+        :return: The molecule with updated and balanced fractional charges.
+        :rtype: Mol
         """
-        # ANCHOR CHARGE INHERITANCE
-        # The base protein anchors inherit the exact partial charges from the patch
-        # topology to ensure the new junction bond is electrostatically stable.
+
         anchor_map = self.config.get("charge_inheritance", {})
 
         for base_atom in stitched_mol.atoms:
@@ -700,7 +689,6 @@ class Stitcher:
                         f"; old charge: {old_charge:.4f} (anchor update)"
                     )
 
-        # Identify which sink atoms are present in this specific residue
         possible_sinks = self.config.get("charge_sinks", [])
         active_sinks = []
         target_residue_atoms = []
@@ -716,14 +704,9 @@ class Stitcher:
                 if a.atom.strip() in possible_sinks:
                     active_sinks.append(a)
 
-        # Calculate the deficit
         current_sum = sum(float(a.charge) for a in target_residue_atoms)
-        # target_sum = round(current_sum)
-        delta_q = (
-            target_charge - current_sum
-        )  # ONLY FOR NEUTRAL LYSINES. NEED TO CHANGE THIS IF NOT.
+        delta_q = target_charge - current_sum
 
-        # Distribute only if we have sinks to take the charge
         if active_sinks and abs(delta_q) > 1e-6:
             q_per_atom = delta_q / len(active_sinks)
             for atom in active_sinks:
@@ -739,9 +722,16 @@ class Stitcher:
 
     def generate_ff_requests(self, stitched_mol, junction_log):
         """
-        Translates junction atom data into corresponding atom types
-        to request parameters from the forcefield database.
+        Translates junction atom data into corresponding atom types to request parameters.
+
+        :param stitched_mol: The molecule containing the generated topology interactions.
+        :type stitched_mol: Mol
+        :param junction_log: Dictionary detailing the newly formed bonds, angles, and dihedrals.
+        :type junction_log: dict
+        :return: A dictionary of tuples formatted for database extraction.
+        :rtype: dict
         """
+
         type_lookup = {atom.number: atom.type for atom in stitched_mol.atoms}
         mapped_types = set(self.config.get("type_mapping", {}).values())
 
@@ -753,11 +743,8 @@ class Stitcher:
         }
 
         def is_boundary(types_tuple):
-            # Returns True if at least one atom is outside the mutated group
-            # Prevents requesting standard parameters already in the forcefield
             return not all(t in mapped_types for t in types_tuple)
 
-        # Existing interactions that were altered by atom re-typing
         if hasattr(self, "retyped_indices"):
             for b in stitched_mol.bonds:
                 if b.a1 in self.retyped_indices or b.a2 in self.retyped_indices:

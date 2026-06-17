@@ -3,12 +3,11 @@ import os
 import shutil
 import json
 from dataclasses import replace
-from networkx import config
-from mol_patcher.stitcher import Stitcher, Patchloader
+from mol_patcher.stitcher import Stitcher
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
 from mol_patcher.topology_io import TopologyParser, TopologyBuilder
-from mol_patcher.geometry import PatchAligner, MolGraph, StericChecker
+from mol_patcher.geometry import PatchAligner
 from mol_patcher.sweeper import SweepConductor
 from mol_patcher import utilities
 from mol_patcher.combine_ff import ForceField
