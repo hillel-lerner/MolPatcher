@@ -1,12 +1,60 @@
+"""
+Orchestrates the conformational optimization of flexible sidechains and payloads.
+Uses graph traversal to isolate moving branches and sweeps canonical rotamer states
+to resolve steric clashes.
+"""
+
 from mol_patcher.utilities import get_dihedral
 from mol_patcher.geometry import StericChecker, rotate_dihedral
 import networkx as nx
-import numpy as np
-import sys
+
+STANDARD_AMINO_ACIDS = {
+    "ALA",
+    "ARG",
+    "ASN",
+    "ASP",
+    "CYS",
+    "GLU",
+    "GLN",
+    "GLY",
+    "HIS",
+    "ILE",
+    "LEU",
+    "LYS",
+    "MET",
+    "PHE",
+    "PRO",
+    "SER",
+    "THR",
+    "TRP",
+    "TYR",
+    "VAL",
+    "HSD",
+    "HSE",
+    "HSP",
+    "GLH",
+    "ASH",
+    "CYX",
+}
 
 
 def get_atom_by_name(mol, res_seq, chain, name):
-    """Fetches the PdbRecord matching name, residue, AND chain."""
+    """
+    Fetches a specific atom record based on its sequence, chain, and name.
+
+    :param mol: The molecule object containing the records.
+    :type mol: Mol
+    :param res_seq: The residue sequence number.
+    :type res_seq: int
+    :param chain: The single-character chain identifier.
+    :type chain: str
+    :param name: The atom name (e.g., 'CA', 'CB').
+    :type name: str
+    :raises StopIteration: If the specified atom cannot be found in the molecule.
+    :return: The matching atom record.
+    :rtype: PdbRecord
+    """
+
     try:
         return next(
             r
@@ -23,7 +71,22 @@ def get_atom_by_name(mol, res_seq, chain, name):
 
 
 def get_downstream_atoms(nx_graph, records, pivot_idx, axis_idx):
-    """Uses graph connectivity to identify the branch segment to be moved."""
+    """
+    Uses graph connectivity to isolate the downstream segment of a molecule that
+    will move when a specific bond is rotated.
+
+    :param nx_graph: The molecular connectivity graph.
+    :type nx_graph: networkx.Graph
+    :param records: The full list of atom records.
+    :type records: list
+    :param pivot_idx: The list index of the stationary atom.
+    :type pivot_idx: int
+    :param axis_idx: The list index of the moving base atom.
+    :type axis_idx: int
+    :return: A list of indices representing the isolated downstream fragment.
+    :rtype: list
+    """
+
     temp_nx_graph = nx_graph.copy()
 
     if temp_nx_graph.has_edge(pivot_idx, axis_idx):
@@ -38,6 +101,21 @@ class RotamerSweeper:
     """Handles canonical protein sidechain rotations (Chi angles)."""
 
     def __init__(self, mol, mol_graph, res_seq, config, chain=" "):
+        """
+        Initializes the RotamerSweeper.
+
+        :param mol: The combined molecule object.
+        :type mol: Mol
+        :param mol_graph: The connectivity graph of the molecule.
+        :type mol_graph: MolGraph
+        :param res_seq: The target residue sequence number.
+        :type res_seq: int
+        :param config: The configuration dictionary containing chi definitions.
+        :type config: dict
+        :param chain: The target chain identifier, defaults to " ".
+        :type chain: str, optional
+        """
+
         self.mol = mol
         self.graph = mol_graph
         self.res_seq = res_seq
@@ -47,10 +125,26 @@ class RotamerSweeper:
         self.obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
 
     def apply_pose(self, chi_angles):
+        """
+        Iterates through a list of target chi angles and applies them sequentially.
+
+        :param chi_angles: A list of target angles in degrees for each defined chi junction.
+        :type chi_angles: list
+        """
+
         for i, angle in enumerate(chi_angles):
             self.apply_chi_rotation(i, angle)
 
     def apply_chi_rotation(self, chi_index, target_angle):
+        """
+        Calculates the delta required to reach a target angle and applies the rotation.
+
+        :param chi_index: The index of the chi definition in the config array.
+        :type chi_index: int
+        :param target_angle: The desired dihedral angle in degrees.
+        :type target_angle: float
+        """
+
         names = self.chi_definitions[chi_index]
         atom_records = [
             get_atom_by_name(self.mol, self.res_seq, self.chain, n) for n in names
@@ -68,20 +162,30 @@ class RotamerSweeper:
         rotate_dihedral(moving_records, coords[1], coords[2], delta)
 
     def get_best_pose(self, steric_checker, moving_atoms):
-        """Tests all canonical sidechain poses, scores them, and returns the best state."""
+        """
+        Tests all canonical sidechain poses, evaluates them using the StericChecker,
+        and returns the best non-clashing state.
+
+        :param steric_checker: An initialized StericChecker object.
+        :type steric_checker: StericChecker
+        :param moving_atoms: The full list of atoms considered part of the moving branch.
+        :type moving_atoms: list
+        :return: A tuple containing the best penalty score, the optimal pose array,
+                 and a dictionary of the winning coordinates.
+        :rtype: tuple of (float, list, dict)
+        """
+
         canonical_rotamers = self.config.get("canonical_rotamers", [])
 
         best_penalty = float("inf")
         best_pose = None
         best_coords = None
 
-        # Save initial state of the moving cluster using indices
         base_coords = {self.obj_to_idx[id(a)]: (a.x, a.y, a.z) for a in moving_atoms}
 
         for i, pose in enumerate(canonical_rotamers):
             self.apply_pose(pose)
 
-            # Unpack the tuple correctly
             penalty, count = steric_checker.score_pose(limit_to_atoms=moving_atoms)
 
             if penalty == 0:
@@ -99,7 +203,6 @@ class RotamerSweeper:
                     self.obj_to_idx[id(a)]: (a.x, a.y, a.z) for a in moving_atoms
                 }
 
-            # Restore coordinates for the next test
             for idx, (x, y, z) in base_coords.items():
                 self.mol.records[idx].x = x
                 self.mol.records[idx].y = y
@@ -109,9 +212,27 @@ class RotamerSweeper:
 
 
 class SweepConductor:
-    """Orchestrates the sweeps for steric resolution."""
+    """
+    High-level orchestrator for rotamer sweeps. Connects pre-docked payloads via
+    virtual graph edges to ensure proper rigid-body propagation during collision checks.
+    """
 
     def __init__(self, mol, graph, target_resid, config, chain_id):
+        """
+        Initializes the SweepConductor.
+
+        :param mol: The combined molecule object.
+        :type mol: Mol
+        :param graph: The molecular connectivity graph.
+        :type graph: MolGraph
+        :param target_resid: The target residue sequence number.
+        :type target_resid: int
+        :param config: The configuration dictionary.
+        :type config: dict
+        :param chain_id: The target chain identifier.
+        :type chain_id: str
+        """
+
         self.mol = mol
         self.graph = graph
         self.resid = target_resid
@@ -123,37 +244,18 @@ class SweepConductor:
         )
 
     def optimize(self, moving_atoms, static_atoms):
+        """
+        Identifies payload molecules via topological bridging, applies the optimal
+        steric sweep, and updates the molecular coordinates in place.
 
-        amino_acids = {
-            "ALA",
-            "ARG",
-            "ASN",
-            "ASP",
-            "CYS",
-            "GLU",
-            "GLN",
-            "GLY",
-            "HIS",
-            "ILE",
-            "LEU",
-            "LYS",
-            "MET",
-            "PHE",
-            "PRO",
-            "SER",
-            "THR",
-            "TRP",
-            "TYR",
-            "VAL",
-            "HSD",
-            "HSE",
-            "HSP",
-            "GLH",
-            "ASH",
-            "CYX",
-        }
+        :param moving_atoms: Initial list of moving atoms (typically the sidechain).
+        :type moving_atoms: list
+        :param static_atoms: Initial list of static environment atoms.
+        :type static_atoms: list
+        :return: True if a valid pose was calculated and applied, False otherwise.
+        :rtype: bool
+        """
 
-        # Create a temporary virtual edge if the glycan is bound to an scr. (residue name is LIG)
         scr_atoms = [a for a in self.mol.records if a.res_name.strip() == "LIG"]
         glycan_anchor_idx = None
         scr_anchor_idx = None
@@ -161,23 +263,23 @@ class SweepConductor:
         if scr_atoms and moving_atoms:
             obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
 
+            # Topologically map the covalent tree starting from the hinge
             hinge_idx = obj_to_idx[id(moving_atoms[0])]
             covalent_tree = nx.node_connected_component(self.graph.nx_graph, hinge_idx)
 
+            # Traverse to find the first covalently attached, non-amino acid atom
             for atom in moving_atoms:
                 idx = obj_to_idx[id(atom)]
 
                 if (
                     atom.res_name.strip() != "LIG"
-                    and atom.res_name.strip() not in amino_acids
+                    and atom.res_name.strip() not in STANDARD_AMINO_ACIDS
                 ):
                     if idx in covalent_tree:
                         glycan_anchor_idx = idx
-                        print(
-                            f"DEBUG: Successfully anchored SCR to {atom.name.strip()} of {atom.res_name.strip()}"
-                        )
                         break
 
+            # Remove temporary virtual bridge
             if glycan_anchor_idx is not None:
                 scr_anchor_idx = obj_to_idx[id(scr_atoms[0])]
                 self.graph.nx_graph.add_edge(glycan_anchor_idx, scr_anchor_idx)
