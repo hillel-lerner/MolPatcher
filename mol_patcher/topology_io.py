@@ -18,9 +18,12 @@ class TopologyParser:
         Scans the ITP file for non-integer residue designations (e.g., '52A').
         If found, generates a sanitized temporary copy with sequential integers to prevent parser crashes.
 
-        :param itp_path: (str) Path to the input .itp file.
-        :param temp: (str) Path to the output directory for the temporary sanitized file.
-        :return: (str) Path to the clean .itp file (returns original path if no fix was needed).
+        :param itp_path: Path to the input .itp file.
+        :type itp_path: str
+        :param temp: Path to the output directory for the temporary sanitized file.
+        :type temp: str
+        :return: Path to the clean .itp file (returns original path if no fix was needed).
+        :rtype: str
         """
 
         needs_fix = False
@@ -96,13 +99,22 @@ class TopologyParser:
         """
         Reads a clean GROMACS .itp file and extracts topological parameters.
 
-        :param filepath: (str) Path to the .itp file.
-        :return: (tuple) Lists containing (ItpAtom, ItpBond, ItpPair, ItpAngle, ItpDih) objects.
+        :param filepath: Path to the .itp file.
+        :type filepath: str
+        :return: A tuple containing the moleculetype string and lists of topology dataclasses.
+        :rtype: tuple of (str, list, list, list, list, list)
         """
 
         atoms, bonds, pairs, angles, dihs = [], [], [], [], []
-        current_section = None
 
+        section_map = {
+            "bonds": (bonds, ItpBond, 3),
+            "pairs": (pairs, ItpPair, 3),
+            "angles": (angles, ItpAngle, 4),
+            "dihedrals": (dihs, ItpDih, 5),
+        }
+
+        current_section = None
         moltype_lines = []
 
         with open(filepath, "r") as f:
@@ -123,14 +135,8 @@ class TopologyParser:
                 if not stripped or stripped.startswith(";"):
                     continue
 
-                # Resets state exactly when a new section starts
-                if stripped.startswith("["):
-                    current_section = stripped.strip("[] ").lower()
-                    continue
-
                 parts = line.split()
 
-                # Parse data
                 if (
                     current_section == "atoms"
                     and len(parts) >= 8
@@ -139,7 +145,7 @@ class TopologyParser:
                     comment = ""
                     if ";" in line:
                         raw_comment = line[line.find(";") :].strip()
-                        if "old_res:" in raw_comment:
+                        if "old_res" in raw_comment:
                             comment = (
                                 "; old_res: "
                                 + raw_comment.split("old_res:")[-1].strip()
@@ -159,32 +165,15 @@ class TopologyParser:
                         )
                     )
 
-                elif current_section == "bonds" and len(parts) >= 3:
-                    bonds.append(ItpBond(int(parts[0]), int(parts[1]), int(parts[2])))
-
-                elif current_section == "pairs" and len(parts) >= 3:
-                    pairs.append(ItpPair(int(parts[0]), int(parts[1]), int(parts[2])))
-
-                elif current_section == "angles" and len(parts) >= 4:
-                    angles.append(
-                        ItpAngle(
-                            int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])
+                elif current_section in section_map:
+                    target_list, data_class, required_len = section_map[current_section]
+                    if len(parts) >= required_len:
+                        target_list.append(
+                            data_class(*[int(p) for p in parts[:required_len]])
                         )
-                    )
 
-                elif current_section == "dihedrals" and len(parts) >= 5:
-                    dihs.append(
-                        ItpDih(
-                            int(parts[0]),
-                            int(parts[1]),
-                            int(parts[2]),
-                            int(parts[3]),
-                            int(parts[4]),
-                        )
-                    )
-
-        moltype_section = "".join(moltype_lines)
-        return moltype_section, atoms, bonds, pairs, angles, dihs
+            moltype_section = "".join(moltype_lines)
+            return moltype_section, atoms, bonds, pairs, angles, dihs
 
 
 class TopologyBuilder:
@@ -196,9 +185,12 @@ class TopologyBuilder:
         """
         Constructs the TopologyBuilder.
 
-        :param mol: (Mol) The molecule object containing the topology to write.
-        :param filename: (str) The output file path.
-        :param mol_name: (str) The strict molecule name to be written in the [ moleculetype ] header.
+        :param mol: The molecule object containing the topology to write.
+        :type mol: Mol
+        :param filename: The output file path for the .itp file.
+        :type filename: str
+        :param mol_name: The molecule name to be written in the [ moleculetype ] header.
+        :type mol_name: str
         """
 
         self.mol = mol
@@ -206,8 +198,12 @@ class TopologyBuilder:
         self.mol_name = mol_name
 
     def write_itp(self):
-        # Writes a GROMACS ITP file after ensuring internal indices are synced.
-        # Trigger the Mol object's internal reindexing to sync a1, a2, etc.
+        """
+        Synchronizes internal atom indices and writes the topology out to disk.
+
+        :return: None.
+        """
+
         reindex_topology(self.mol)
 
         with open(self.filename, "w") as f:
@@ -267,4 +263,3 @@ class TopologyBuilder:
                         f"{d.a1:>7d} {d.a2:>7d} {d.a3:>7d} {d.a4:>7d} {d.type:>7d}\n"
                     )
                 f.write("\n")
-
