@@ -1,11 +1,26 @@
+"""
+Parses CHARMM forcefield files (.prm, .str), extracts specific topological parameters
+for newly formed molecular junctions, converts them to GROMACS units, and writes
+them to an included .itp file.
+"""
+
 import os
 
 
 class ForceField:
+    """
+    Creates a searchable database of CHARMM parameters for dynamic GROMACS topology generation.
+    """
+
     def __init__(self, ff_files: list) -> None:
         """
         Accepts a list of file paths for multiple CHARMM parameter files to be loaded into a searchable database.
+
+        :param ff_files: A list of absolute or relative paths to CHARMM forcefield files.
+        :type ff_files: list
+        :return: None
         """
+
         self.ff_files = ff_files
 
         self.parameters = {
@@ -18,7 +33,16 @@ class ForceField:
 
         self.junction_output = {k: set() for k in self.parameters}
 
-    def find_ff_type(self, ff_file):
+    @staticmethod
+    def find_ff_type(ff_file):
+        """
+        Determines the type of CHARMM forcefield file based on its extension.
+
+        :param ff_file: The path or name of the forcefield file.
+        :type ff_file: str
+        :return: The file extension type ('prm', 'str', or 'itp'), or None if unrecognized.
+        :rtype: str or None
+        """
         base_name = os.path.basename(ff_file)
         if ".prm" in base_name:
             return "prm"
@@ -31,7 +55,10 @@ class ForceField:
     def read_database(self):
         """
         Loops through all provided files and builds the searchable parameter dictionaries.
+
+        :return: None. Populates the internal self.parameters dictionary.
         """
+
         charmm_mapping = {
             "ATOMS": "atomtypes",
             "BONDS": "bonds",
@@ -67,8 +94,16 @@ class ForceField:
 
     def _convert_and_store(self, section, parts):
         """
-        Converts parameter line to GROMACS format + units and stores it under forward and reverse atom-type tuples
+        Converts parameter line to GROMACS format and units, and stores it under
+        forward and reverse atom-type tuples.
+
+        :param section: The topology section being processed (e.g., 'bonds', 'angles').
+        :type section: str
+        :param parts: The split string components of the parsed CHARMM parameter line.
+        :type parts: list
+        :return: None. Updates the internal self.parameters dictionary.
         """
+
         formatted_line = None
         keys = []
 
@@ -123,7 +158,12 @@ class ForceField:
     def extract_junction_params(self, requested_params: dict):
         """
         Takes a dict of required atom signatures and scrapes them from the database.
+
+        :param requested_params: Dictionary of topology sections mapping to sets of atom type tuples.
+        :type requested_params: dict
+        :return: None. Populates the internal self.junction_output dictionary.
         """
+
         # Aliases allow cross-forcefield boundary atoms to find their base parameters
         aliases = {"CC2O1": "CC", "NC2D1": "NH2", "OC2D1": "O", "HCP1": "H"}
 
@@ -182,7 +222,12 @@ class ForceField:
     def write_ff(self, outfile):
         """
         Writes scraped junction parameters to a GROMACS itp file.
+
+        :param outfile: The target filepath to write the topology parameters.
+        :type outfile: str
+        :return: None. Writes directly to disk.
         """
+
         # Translator map for strict GROMACS global directives
         gmx_headers = {
             "bonds": "bondtypes",
