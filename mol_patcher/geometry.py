@@ -1,3 +1,8 @@
+"""
+The spatial and topological engine for MolPatcher.
+Handles 3D coordinate manipulation, matrix alignments, graph building, and steric evaluations.
+"""
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 from typing import List
@@ -11,6 +16,11 @@ import sys
 def get_coords_array(atoms: List[PdbRecord]) -> np.ndarray:
     """
     Extracts an Nx3 numpy array of coordinates from any list of PdbRecord objects.
+
+    :param atoms: List of atoms to extract coordinates from.
+    :type atoms: list
+    :return: An Nx3 matrix of (x, y, z) coordinates.
+    :rtype: numpy.ndarray
     """
 
     return np.array([[a.x, a.y, a.z] for a in atoms])
@@ -20,11 +30,17 @@ def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
     """
     Applies a quaternion rotation to a list of atoms around a specific bond vector.
 
-    :param atoms: (list) PdbRecord objects to be rotated.
-    :param pivot_coord: (tuple/list) The (x,y,z) coordinates of the stationary atom.
-    :param axis_coord: (tuple/list) The (x,y,z) coordinates of the atom defining the rotation axis.
-    :param angle_degrees: (float) The amount to rotate in degrees.
-    :return: (numpy.ndarray) The final transformed coordinate array.
+    :param atoms: Objects to be rotated.
+    :type atoms: list
+    :param pivot_coord: The (x, y, z) coordinates of the stationary atom.
+    :type pivot_coord: tuple or list
+    :param axis_coord: The (x, y, z) coordinates of the atom defining the rotation axis.
+    :type axis_coord: tuple or list
+    :param angle_degrees: The amount to rotate in degrees.
+    :type angle_degrees: float
+    :raises ValueError: If pivot and axis coordinates are identical.
+    :return: The final transformed coordinate array.
+    :rtype: numpy.ndarray
     """
 
     # Define and normalize the axis vector
@@ -46,18 +62,23 @@ def rotate_dihedral(atoms, pivot_coord, axis_coord, angle_degrees):
     if not atoms:
         return None  # Return None if there is nothing to rotate
 
-    final_pos = None
-    for atom in atoms:
-        pos = np.array([atom.x, atom.y, atom.z])
-        final_pos = rot_obj.apply(pos - pivot) + pivot
-        atom.x, atom.y, atom.z = final_pos
+    # Vectorized Rotation
+    coords = get_coords_array(atoms)
+    final_coords = rot_obj.apply(coords - pivot) + pivot
 
-    return final_pos
+    return final_coords
 
 
 def align_centroids(mol_1, mol_2):
     """
     Calculates the geometric centroid of two atom lists and aligns them.
+
+    :param mol_1: The reference molecule atoms.
+    :type mol_1: list
+    :param mol_2: The moving molecule atoms to translate.
+    :type mol_2: list
+    :return: The translated list of moving atoms.
+    :rtype: list
     """
 
     mol_1_coords = np.array([[a.x, a.y, a.z] for a in mol_1])
@@ -79,7 +100,20 @@ def align_centroids(mol_1, mol_2):
 def translate_along_vector(atoms, start_coord, end_coord, distance=1.5):
     """
     Pushes a list of atoms a specific distance along a defined directional vector.
+
+    :param atoms: Objects to be translated.
+    :type atoms: list
+    :param start_coord: The starting (x, y, z) coordinates.
+    :type start_coord: tuple or list
+    :param end_coord: The ending (x, y, z) coordinates.
+    :type end_coord: tuple or list
+    :param distance: The translation distance in Angstroms, defaults to 1.5.
+    :type distance: float, optional
+    :raises ValueError: If start and end coordinates are identical.
+    :return: The translated list of atoms.
+    :rtype: list
     """
+
     direction_vec = np.array(end_coord) - np.array(start_coord)
     vec_norm = np.linalg.norm(direction_vec)
 
@@ -101,9 +135,19 @@ def translate_along_vector(atoms, start_coord, end_coord, distance=1.5):
 def rotate_around_pivot(atoms, pivot_coord, axis_vec, angle_degrees):
     """
     Rotates a list of atoms around a specific pivot point in 3D space.
-    - If pivot_coord is the glycan centroid, the SCR orbits the glycan.
-    - If pivot_coord is the SCR centroid, the SCR spins in place.
+
+    :param atoms: Objects to be rotated.
+    :type atoms: list
+    :param pivot_coord: The (x, y, z) coordinates of the rotation center.
+    :type pivot_coord: tuple or list
+    :param axis_vec: The (x, y, z) vector defining the axis of rotation.
+    :type axis_vec: tuple or list
+    :param angle_degrees: The rotation amount in degrees.
+    :type angle_degrees: float
+    :return: The rotated list of atoms.
+    :rtype: list
     """
+
     # Normalize the axis of rotation (e.g., [1, 0, 0] for the X-axis)
     axis_arr = np.array(axis_vec)
     axis_norm = axis_arr / np.linalg.norm(axis_arr)
@@ -112,45 +156,20 @@ def rotate_around_pivot(atoms, pivot_coord, axis_vec, angle_degrees):
     rot_obj = Rotation.from_rotvec(axis_norm * np.radians(angle_degrees))
     pivot = np.array(pivot_coord)
 
-    # Apply the rotation by entering on the pivot, rotating, and translating back
-    for atom in atoms:
-        pos = np.array([atom.x, atom.y, atom.z])
-        final_pos = rot_obj.apply(pos - pivot) + pivot
-        atom.x, atom.y, atom.z = final_pos
+    # Vectorized rotation
+    coords = get_coords_array(atoms)
+    final_coords = rot_obj.apply(coords - pivot) + pivot
+
+    for i, atom in enumerate(atoms):
+        atom.x, atom.y, atom.z = final_coords[i]
 
     return atoms
 
 
-def random_rot(atoms, target_centroid, base_coords, max_dist_nm):
-    """
-    Applies a random 3D rotation + translations to a list of atoms
-    """
-
-    # Generate random translation vector within specified max distance
-    offset = (np.random.rand(3) - 0.5) * (max_dist_nm * 10) * 2
-    target_pos = target_centroid + offset
-    # Generate rotation matrix
-    rot = Rotation.random().as_matrix()
-
-    # Apply transformation to undistorted base coordinates
-    base_centroid = np.mean(base_coords, axis=0)
-
-    temp_coords = []
-    for i, atom in enumerate(atoms):
-        pos = base_coords[i]
-        new_pos = rot @ (pos - base_centroid) + target_pos
-        atom.x, atom.y, atom.z = new_pos
-        temp_coords.append(new_pos)
-
-    return temp_coords
-
-
 class PatchAligner:
     """
-    Takes a list of equivalent PdbRecord objects from a patch molecule (pfp) and base molecule (protein) as anchors
-    Generates the rotational and transformational matrices required to align the anchors
-    Apply those operations to all atoms of patch molecule
-    Update the coordinates of the patch molecules PdbRecord Objects
+    Generates rotational and transformational matrices to align equivalent anchors
+    between a patch molecule and a base protein.
     """
 
     def __init__(
@@ -162,9 +181,12 @@ class PatchAligner:
         """
         Constructs the PatchAligner.
 
-        :param patch_atoms: (list) All PdbRecord objects comprising the patch molecule.
-        :param patch_anchors: (list) PdbRecord objects of the patch atoms to be aligned.
-        :param target_anchors: (list) PdbRecord objects of the target protein atoms.
+        :param patch_atoms: All PdbRecord objects comprising the patch molecule.
+        :type patch_atoms: list
+        :param patch_anchors: PdbRecord objects of the patch atoms to be aligned.
+        :type patch_anchors: list
+        :param target_anchors: PdbRecord objects of the target protein atoms.
+        :type target_anchors: list
         """
 
         self.patch_atoms = patch_atoms
@@ -191,6 +213,12 @@ class PatchAligner:
         self.translation_vector = target_centroid - rotated_patch_centroid
 
     def implement_align(self):
+        """
+        Applies the calculated alignment matrices to the entire patch molecule.
+
+        :return: The transformed list of patch atoms.
+        :rtype: list
+        """
 
         if self.rotation_object is None or self.translation_vector is None:
             return self.patch_atoms
@@ -210,15 +238,24 @@ class PatchAligner:
         """
         Translates and rotates the patch molecule using a single bond vector alignment.
 
-        :param atoms: (list) PdbRecord object(s) comprising the atoms involved in the new bond.
-        :param at1: (tuple/list) PdbRecord object for atom on the first molecule that will be replaced.
-        :param at2: (tuple/list) PdbRecord object for atom on the first molecule that will be be bonded to at3.
-        :param at3: (tuple/list) PdbRecord object for atom on the second molecule that will be be bonded to at2.
-        :param at4: (tuple/list) PdbRecord object for atom on the second molecule that will be replaced.
-        :param target_bond_length: (float) The length (in angstroms) of the new bond being formed.
+        :param atoms: PdbRecord objects comprising the patch molecule.
+        :type atoms: list
+        :param at1: Base primary atom that will be replaced.
+        :type at1: PdbRecord
+        :param at2: Base anchor atom forming the bond.
+        :type at2: PdbRecord
+        :param at3: Patch anchor atom forming the bond.
+        :type at3: PdbRecord
+        :param at4: Patch leaving group atom that will be replaced.
+        :type at4: PdbRecord
+        :param target_bond_length: The length of the new bond in Angstroms.
+        :type target_bond_length: float
+        :return: The transformed list of patch atoms.
+        :rtype: list
         """
+
         # at1 through at4 are the atoms involved in bonding:
-        # initial bonds are at1-at2 and at3-at4 we want to create a bond between at2 and at3 s.t. the coords of at1=at3 and coords of at2=at4
+        # initial bonds are at1-at2 and at3-at4 we want to create a bond between at2 and at3 such that the coords of at1=at3 and coords of at2=at4
 
         self.at1_coords = np.array([at1.x, at1.y, at1.z])
         self.at2_coords = np.array([at2.x, at2.y, at2.z])
@@ -248,11 +285,20 @@ class PatchAligner:
         """
         Spins the patch molecule around the new junction bond to match a specific dihedral angle.
 
-        :param p1: (tuple/list) Base primary atom (e.g., Aspargine CA)
-        :param p2: (tuple/list) Base anchor atom (e.g., Aspargine N) - Axis of rotation
-        :param p3: (tuple/list) Patch anchor atom (e.g., Glycan C1) - Pivot for rotation
-        :param p4: (tuple/list) Patch secondary atom (e.g., Glycan Ring O)
-        :return: (numpy.ndarray) The final transformed coordinate array.
+        :param atoms: The patch atoms to be rotated.
+        :type atoms: list
+        :param p1: Base primary atom.
+        :type p1: PdbRecord
+        :param p2: Base anchor atom (axis of rotation).
+        :type p2: PdbRecord
+        :param p3: Patch anchor atom (pivot for rotation).
+        :type p3: PdbRecord
+        :param p4: Patch secondary atom.
+        :type p4: PdbRecord
+        :param target_dih: The target dihedral angle in degrees.
+        :type target_dih: float
+        :return: The transformed list of patch atoms.
+        :rtype: list
         """
 
         self.p1_coords = np.array([p1.x, p1.y, p1.z])
@@ -283,13 +329,25 @@ class PatchAligner:
         """
         Bends the bond angle of a junction using a reference atom to define the bending plane.
 
-        :param atoms: (list) PdbRecord objects to be rotated (the patch).
-        :param p1: (PdbRecord) Base primary atom (e.g., C6)
-        :param p2: (PdbRecord) Base anchor atom / The Vertex (e.g., O6)
-        :param p3: (PdbRecord) Patch anchor atom (e.g., Galactose C1)
-        :param p_ref: (PdbRecord) Reference atom to define the plane (e.g., C5)
-        :param target_angle: (float) The desired bond angle in degrees (e.g., 114.0)
+        :param atoms: The patch atoms to be bent.
+        :type atoms: list
+        :param p1: Base primary atom.
+        :type p1: PdbRecord
+        :param p2: Base anchor atom / The vertex.
+        :type p2: PdbRecord
+        :param p3: Patch anchor atom.
+        :type p3: PdbRecord
+        :param p_ref: Reference atom to define the bending plane.
+        :type p_ref: PdbRecord
+        :param target_angle: The desired bond angle in degrees.
+        :type target_angle: float
+        :param repulsion_coord: Optional coordinate to maximize distance from during bending.
+        :type repulsion_coord: list or tuple, optional
+        :raises ValueError: If reference atoms are collinear.
+        :return: The transformed list of patch atoms.
+        :rtype: list
         """
+
         v1 = np.array([p1.x, p1.y, p1.z]) - np.array([p2.x, p2.y, p2.z])
         v3 = np.array([p3.x, p3.y, p3.z]) - np.array([p2.x, p2.y, p2.z])
         v_ref = np.array([p_ref.x, p_ref.y, p_ref.z]) - np.array([p2.x, p2.y, p2.z])
@@ -299,7 +357,6 @@ class PatchAligner:
         current_angle = np.degrees(np.arccos(cosine_angle))
 
         delta = target_angle - current_angle
-
         hinge_axis = np.cross(v1, v_ref)
         axis_norm = np.linalg.norm(hinge_axis)
 
@@ -309,7 +366,6 @@ class PatchAligner:
             )
 
         hinge_axis_normalized = hinge_axis / axis_norm
-
         pivot = np.array([p2.x, p2.y, p2.z])
 
         rot_forward = Rotation.from_rotvec(hinge_axis_normalized * np.radians(delta))
@@ -337,19 +393,31 @@ class PatchAligner:
         else:
             best_rot = rot_forward
 
-        # Apply rotation
-        for atom in atoms:
-            pos = np.array([atom.x, atom.y, atom.z])
-            final_pos = best_rot.apply(pos - pivot) + pivot
-            atom.x, atom.y, atom.z = final_pos
+        # Vectorized bending
+        coords = get_coords_array(atoms)
+        final_coords = best_rot.apply(coords - pivot) + pivot
+
+        for i, atom in enumerate(atoms):
+            atom.x, atom.y, atom.z = final_coords[i]
 
         return atoms
 
     def align_from_template(self, base_records, patch_records, template, base_res_idx):
         """
-        Executes alignment based on JSON template.
+        Executes sequence alignment based on predefined values in the JSON template.
+
+        :param base_records: PdbRecord objects of the base protein.
+        :type base_records: list
+        :param patch_records: PdbRecord objects of the patch molecule.
+        :type patch_records: list
+        :param template: The configuration dictionary.
+        :type template: dict
+        :param base_res_idx: The sequence index of the target residue.
+        :type base_res_idx: int
+        :return: The transformed list of patch atoms.
+        :rtype: list
         """
-        # Find the connecting residue of the glycan (lowest res_seq)
+
         root_idx = min(r.res_seq for r in patch_records)
 
         # Configs
@@ -374,7 +442,7 @@ class PatchAligner:
         at_cg = get_atom(base_records, b_config["primary"], base_res, base_res_idx)
         at_nd2 = get_atom(base_records, b_config["anchor"], base_res, base_res_idx)
         at_cb = get_atom(base_records, b_config["ref"], base_res, base_res_idx)
-        at_od1 = get_atom(base_records, b_config["carbonyl"], base_res, base_res_idx)
+        # at_od1 = get_atom(base_records, b_config["carbonyl"], base_res, base_res_idx)
 
         at_c1 = get_atom(patch_records, p_config["anchor"], patch_res, root_idx)
         at_o5 = get_atom(patch_records, p_config["secondary"], patch_res, root_idx)
@@ -423,12 +491,22 @@ class PatchAligner:
 
 
 class MolGraph:
+    """
+    Constructs a NetworkX connectivity matrix of the molecule for topology traversals.
+    """
+
     def __init__(self, mol: Mol, distXX=1.65, distXH=1.15, itp_to_pdb_map=None):
         """
-        Creates a connectivity matrix of the molecule. A connectivity matrix holds the information of which atoms are bonded and to what.
+        Initializes the connectivity matrix mapping bonded interactions.
 
-        :param distXX: The max distance between two atoms (not hydrogen) to be considered a bond
-        :param distXH: The max distance between any atom and a hydrogen atom to be considered a bond
+        :param mol: The standardized molecule container.
+        :type mol: Mol
+        :param distXX: The maximum distance between two heavy atoms to be considered bonded.
+        :type distXX: float
+        :param distXH: The maximum distance between a heavy atom and hydrogen to be considered bonded.
+        :type distXH: float
+        :param itp_to_pdb_map: Optional mapping dictionary to bypass spatial calculation.
+        :type itp_to_pdb_map: dict, optional
         """
 
         self.mol = mol
@@ -452,6 +530,9 @@ class MolGraph:
     def copy(self):
         """
         Creates a shallow copy of the MolGraph.
+
+        :return: A copied instance of the graph.
+        :rtype: MolGraph
         """
         new_instance = copy.copy(self)
         if self.nx_graph is not None:
@@ -460,9 +541,9 @@ class MolGraph:
 
     def _build_edges_from_topology(self, itp_to_pdb_map):
         """
-        Builds the connectivity matrix and graph directly from the ITP bonds list,
-        bypassing spatial distance calculations entirely.
+        Builds the graph directly from the ITP bonds list, bypassing spatial distance sweeps.
         """
+
         Natoms = len(self.mol.records)
         conn_mat = np.zeros((Natoms, Natoms))
 
@@ -492,13 +573,7 @@ class MolGraph:
 
     def _build_matrix(self):
         """
-        Executes distance checks and builds the connectivity matrix.
-
-        To avoid protein-wide O(N^2) scaling and inter-residue clashes, distance
-        calculations are localized to atoms within the same residue. The peptide
-        backbone is then stitched together using an O(1) dictionary lookup map.
-
-        :return: None. Updates the internal self.matrix and self.nx_graph variables.
+        Executes localized distance checks to map the backbone and build the connectivity matrix.
         """
 
         Natoms = len(self.mol.records)
@@ -612,9 +687,28 @@ class MolGraph:
 
 
 class StericChecker:
+    """
+    Evaluates spatial environments using a localized graph-traversal search to identify overlaps based on VdW radii.
+    """
+
     def __init__(
         self, mol_graph, moving_atoms, static_atoms, tolerance=0.55, docking_target=None
     ):
+        """
+        Initializes the StericChecker.
+
+        :param mol_graph: The molecular connectivity graph.
+        :type mol_graph: MolGraph
+        :param moving_atoms: Atoms that will be transformed during sweeps.
+        :type moving_atoms: list
+        :param static_atoms: The rigid environment atoms.
+        :type static_atoms: list
+        :param tolerance: Fraction of combined VdW radii allowed before triggering a clash.
+        :type tolerance: float
+        :param docking_target: Optional target coordinates for localized spatial filtering.
+        :type docking_target: list, optional
+        """
+
         self.mol_graph = mol_graph
 
         # Filter out atoms that do not move during sidechain sweeps.
@@ -676,9 +770,14 @@ class StericChecker:
 
     def check_clashes(self, limit_to_atoms=None):
         """
-        Evaluates distances between moving and static atoms.
-        :param limit_to_atoms: (list, optional) If provided, only check clashes originating from these PdbRecord objects.
+        Evaluates distances between moving and static atoms and returns immediately upon finding a clash.
+
+        :param limit_to_atoms: Specific PdbRecord objects to limit the search scope, defaults to None.
+        :type limit_to_atoms: list, optional
+        :return: A tuple of the actual clash distance and the formatting error message, or (None, None) if clean.
+        :rtype: tuple
         """
+
         # If no list provided, check all known moving atoms defined during init
         check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
 
@@ -737,8 +836,14 @@ class StericChecker:
 
     def score_pose(self, limit_to_atoms=None):
         """
-        Calculates a penalty score for the current pose by summing the penetration depth of all overlaps.
+        Calculates a penalty score using vectorized numpy broadcasting to evaluate penetration depths.
+
+        :param limit_to_atoms: Specific PdbRecord objects to score, defaults to None.
+        :type limit_to_atoms: list, optional
+        :return: A tuple containing the total accumulated penalty and the number of distinct clashes.
+        :rtype: tuple of (float, int)
         """
+
         check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
 
         base_environment = self.static_atoms.copy()
@@ -748,45 +853,6 @@ class StericChecker:
             )
 
         env_heavy = [s for s in base_environment if not s.name.strip().startswith("H")]
-
-        # if check_list:
-        #    center_atom = check_list[0]
-        #    center_coords = (center_atom.x, center_atom.y, center_atom.z)
-
-        #    environment_atoms = [
-        #       s
-        #        for s in base_environment
-        #        if get_distance((s.x, s.y, s.z), center_coords) < 75.0
-        #    ]
-        # else:
-        #    environment_atoms = base_environment
-
-        # total_penalty = 0.0
-        # clash_count = 0
-
-        # for m_atom in check_list:
-        #    m_element = m_atom.name.strip()[0]
-        #    m_vdw = self.vdw_radii.get(m_element, 1.50)
-
-        #    for s_atom in environment_atoms:
-        #        if m_atom.serial == s_atom.serial:
-        #            continue
-        #        if (m_atom.serial, s_atom.serial) in self.excluded_pairs:
-        #            continue
-        #        if s_atom.name.strip().startswith("H"):
-        #            continue
-
-        #        s_element = s_atom.name.strip()[0]
-        #        s_vdw = self.vdw_radii.get(s_element, 1.50)
-
-        #        actual_dist = get_distance(
-        #            (m_atom.x, m_atom.y, m_atom.z), (s_atom.x, s_atom.y, s_atom.z)
-        #        )
-        #        threshold = (m_vdw + s_vdw) * self.tolerance
-
-        #        if actual_dist < threshold:
-        #            total_penalty += threshold - actual_dist
-        #            clash_count += 1
 
         moving_coords = np.array([[a.x, a.y, a.z] for a in check_list])
         env_coords = np.array([[s.x, s.y, s.z] for s in env_heavy])
@@ -820,9 +886,16 @@ class StericChecker:
 
     def score_docking(self, limit_to_atoms=None, contact_threshold=5.5):
         """
-        Calculates a distance score for docking using Numpy. Rewards atoms within contact threshold but penalizes steric clashes.
-        Lower score (more negative) is better.
+        Calculates a distance score for docking using Numpy arrays.
+
+        :param limit_to_atoms: Specific PdbRecord objects to score, defaults to None.
+        :type limit_to_atoms: list, optional
+        :param contact_threshold: Max distance in Angstroms to be considered a positive contact.
+        :type contact_threshold: float, optional
+        :return: A float score where lower (more negative) is better.
+        :rtype: float
         """
+
         check_list = limit_to_atoms if limit_to_atoms is not None else self.moving_atoms
 
         m_coords = np.array([[a.x, a.y, a.z] for a in check_list])
