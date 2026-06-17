@@ -1,18 +1,20 @@
-from typing import List, Optional
-from dataclasses import dataclass, field, replace
-from .mol_record import Mol
+from dataclasses import replace
+
 
 def reindex_topology(mol, remap_dict=None):
     """
     Synchronizes atom numbers and all bonded interactions (bonds, pairs, angles, dihedrals)
     to ensure sequential numbering after molecular surgery.
-    
-    :param mol: (Mol) The molecule object to be reindexed.
-    :param remap_dict: (dict, optional) A dictionary mapping deleted or merged atom indices 
-                    to their new preserved index (e.g., mapping a patch nitrogen to a protein nitrogen).
-    :return: (dict) index_map containing the translation from old indices to new sequential indices.
+
+    :param mol: The molecule object to be reindexed.
+    :type mol: Mol
+    :param remap_dict: A dictionary mapping deleted or merged atom indices to their new
+    preserved index (e.g., mapping a patch nitrogen to a protein nitrogen), defaults to None.
+    :type remap_dict: dict, optional
+    :return: A dictionary containing the translation from old indices to new sequential indices.
+    :rtype: dict
     """
-    
+
     index_map = {}
     remap_dict = remap_dict or {}
 
@@ -20,8 +22,8 @@ def reindex_topology(mol, remap_dict=None):
         new_nr = i + 1
         index_map[atom.number] = new_nr
         atom.number = new_nr
-        atom.cgnr = new_nr  
-        
+        atom.cgnr = new_nr
+
     for i, record in enumerate(mol.records):
         record.serial = i + 1
 
@@ -36,7 +38,7 @@ def reindex_topology(mol, remap_dict=None):
             # Translate the old or remapped index into the new sequential index
             new_a1 = index_map[target_a1]
             new_a2 = index_map[target_a2]
-            
+
             # Use sorted tuples to prevent duplicate interactions backwards and forwards
             signature = tuple(sorted([new_a1, new_a2]))
             if signature not in seen_bonds:
@@ -55,7 +57,7 @@ def reindex_topology(mol, remap_dict=None):
         try:
             new_a1 = index_map[target_a1]
             new_a2 = index_map[target_a2]
-            
+
             signature = tuple(sorted([new_a1, new_a2]))
             if signature not in seen_pairs:
                 seen_pairs.add(signature)
@@ -75,11 +77,11 @@ def reindex_topology(mol, remap_dict=None):
             new_a1 = index_map[target_a1]
             new_a2 = index_map[target_a2]
             new_a3 = index_map[target_a3]
-            
+
             # Check forwards and backwards
             sig1 = (new_a1, new_a2, new_a3, ang.type)
             sig2 = (new_a3, new_a2, new_a1, ang.type)
-            
+
             if sig1 not in seen_angles and sig2 not in seen_angles:
                 seen_angles.add(sig1)
                 new_angles.append(replace(ang, a1=new_a1, a2=new_a2, a3=new_a3))
@@ -100,16 +102,19 @@ def reindex_topology(mol, remap_dict=None):
             new_a2 = index_map[target_a2]
             new_a3 = index_map[target_a3]
             new_a4 = index_map[target_a4]
-            
+
             # Check forwards and backwards
             sig1 = (new_a1, new_a2, new_a3, new_a4, dih.type)
             sig2 = (new_a4, new_a3, new_a2, new_a1, dih.type)
-            
+
             if sig1 not in seen_dihs and sig2 not in seen_dihs:
                 seen_dihs.add(sig1)
-                new_dihs.append(replace(dih, a1=new_a1, a2=new_a2, a3=new_a3, a4=new_a4))
+                new_dihs.append(
+                    replace(dih, a1=new_a1, a2=new_a2, a3=new_a3, a4=new_a4)
+                )
         except KeyError:
             continue
     mol.dihs = new_dihs
 
     return index_map
+
