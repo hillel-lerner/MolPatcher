@@ -100,7 +100,7 @@ The generated `.log` file provides exact instructions for integrating the new sy
 
 ```text
 ========== MOLPATCHER EXECUTION LOG ==========
-Target : LYS 188 (Chain A)
+Target : LYS 188 (Chain B)
 Patch  : pfp_patch_new.pdb
 ==============================================
 
