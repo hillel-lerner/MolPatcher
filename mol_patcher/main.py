@@ -4,6 +4,8 @@ import sys
 import shutil
 import json
 from dataclasses import replace
+
+from networkx import config
 from mol_patcher.stitcher import Stitcher
 from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbParser, PdbBuilder
@@ -131,7 +133,7 @@ def run_patch(
 
     actual_res_name = target_residue_atoms[0].res_name.strip()
 
-    if actual_res_name == new_res:
+    if actual_res_name == new_res and target_res != new_res:
         print(
             f"Warning: Target residue '{actual_res_name} {base_resid}' is already modified by MolPatcher."
         )
@@ -411,24 +413,20 @@ def main():
     :return: None
     """
     parser = argparse.ArgumentParser(
-        description="Patch a ligand into a protein residue."
+        description="MolPatcher: Structure and Topology Stitcher"
     )
     parser.add_argument(
-        "-config", "--config", required=True, help="Path to JSON configuration file"
+        "input_file",
+        nargs="?",
+        default="run.json",
+        help="Path to the JSON run input file (defaults to run.json",
     )
+
     parser.add_argument(
-        "-base",
-        nargs=4,
-        metavar=("PDB", "ITP", "RES", "CHAIN"),
-        required=True,
-        help="Base protein: [PDB] [ITP] [Residue ID] [Chain]",
-    )
-    parser.add_argument(
-        "-patch",
-        nargs="+",
-        metavar="ARG",
-        required=True,
-        help="Patch molecule: [PDB] [ITP] [Optional Res ID] [Optional Chain]",
+        "--init",
+        type=str,
+        metavar="TEMPLATE_NAME",
+        help="Generate a blank run.json for a specific template (e.g., nglycan_asn or pfp_lys)",
     )
     parser.add_argument("-o", "--outdir", default=os.getcwd(), help="Output directory")
     parser.add_argument(
@@ -439,51 +437,94 @@ def main():
         default=[],
         help="Optional list of additional forcefield files to copy to toppar directory",
     )
-    parser.add_argument(
-        "-scr",
-        "--scr_itp",
-        type=str,
-        default=None,
-        help="Optional path to a separate topology (itp) file for an patch involving an SCR bound to a glycan.",
-    )
-
     args = parser.parse_args()
-    config_path = args.config
+
+    if args.init:
+        if args.init == "nglycan_asn":
+            init_template = {
+                "_comment": "Patching a glycan into a protein. Replace filenames with your own.",
+                "template": "nglycan_asn",
+                "base": {
+                    "pdb": "protein.pdb",
+                    "itp": "PROB.itp",
+                    "resid": 1,
+                    "chain": "A",
+                },
+                "patch": {"pdb": "glycan.pdb", "itp": "CARB.itp"},
+                "scr_itp": "LIG.itp",
+                "forcefields": [],
+            }
+
+        elif args.init == "pfp_lys":
+            init_template = {
+                "_comment": "Modifying a Lysine with PFP. Replace filenames with your own.",
+                "template": "pfp_lys",
+                "base": {
+                    "pdb": "protein.pdb",
+                    "itp": "PROB.itp",
+                    "resid": 1,
+                    "chain": "A",
+                },
+                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
+                "forcefields": [],
+            }
+
+        else:
+            print(f"Error: Unknown template '{args.init}'. Cannot generate run.json.")
+            sys.exit(1)
+
+        init_path = os.path.join(os.getcwd(), "run.json")
+        with open(init_path, "w") as f:
+            json.dump(init_template, f, indent=4)
+
+        print(f"Generated a blanks {args.init} template at {init_path}")
+        sys.exit(0)
+
+    input_path = os.path.abspath(args.input_file)
+    if not os.path.exists(input_path):
+        print(f"Error: Could not find input file at {input_path}")
+        sys.exit(1)
+
+    with open(input_path, "r") as f:
+        run_data = json.load(f)
+
+    template_name = run_data.get("template")
+    if not template_name:
+        print("Error: Input file must specify a 'template' (e.g., 'nglycan_asn').")
+
+    main_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(main_dir)
+    config_path = os.path.join(project_root, "configs", f"{template_name}.json")
 
     if not os.path.exists(config_path):
-        main_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(main_dir)
-        internal_config_path = os.path.join(project_root, "configs", args.config)
-
-        if not internal_config_path.endswith(".json"):
-            internal_config_path += ".json"
-
-        if os.path.exists(internal_config_path):
-            config_path = internal_config_path
-        else:
-            raise FileNotFoundError(
-                f"Config file not found locally or in MolPatcher/configs: {args.config}"
-            )
+        print(f"Error: Could not find template '{template_name}' at {config_path}")
+        sys.exit(1)
 
     with open(config_path, "r") as f:
         junction_config = json.load(f)
 
-    base_pdb_abs = os.path.abspath(args.base[0])
-    base_itp_abs = os.path.abspath(args.base[1])
-    base_res = int(args.base[2])
-    base_chain = args.base[3]
+    wdir = os.getcwd()
+    base_data = run_data.get("base", {})
+    patch_data = run_data.get("patch", {})
 
-    patch_pdb_abs = os.path.abspath(args.patch[0])
-    patch_itp_abs = os.path.abspath(args.patch[1])
+    base_pdb_abs = os.path.join(wdir, base_data.get("pdb", ""))
+    base_itp_abs = os.path.join(wdir, base_data.get("itp", ""))
+    base_res = int(base_data.get("resid", 0))
+    base_chain = str(base_data.get("chain", " "))
 
-    # Standard list length checks for the optional patch parameters
-    patch_res = int(args.patch[2]) if len(args.patch) > 2 else None
-    patch_chain = args.patch[3] if len(args.patch) > 3 else " "
+    patch_pdb_abs = os.path.join(wdir, patch_data.get("pdb", ""))
+    patch_itp_abs = os.path.join(wdir, patch_data.get("itp", ""))
 
-    # Validation of input files
+    scr_itp_raw = run_data.get("scr_itp")
+    scr_itp_abs = os.path.join(wdir, scr_itp_raw) if scr_itp_raw else None
+
+    json_ff_files = run_data.get("forcefields", [])
+    combined_ff_files = json_ff_files + args.copy_ff
+    final_ff_files = [os.path.abspath(os.path.join(wdir, f)) for f in combined_ff_files]
+
     input_files = [base_pdb_abs, base_itp_abs, patch_pdb_abs, patch_itp_abs]
-    if args.scr_itp:
-        input_files.append(os.path.abspath(args.scr_itp))
+    if scr_itp_abs:
+        input_files.append(scr_itp_abs)
 
     missing_files = [f for f in input_files if not os.path.exists(f)]
     if missing_files:
@@ -497,15 +538,15 @@ def main():
         patch_itp=patch_itp_abs,
         base_pdb=base_pdb_abs,
         base_itp=base_itp_abs,
-        patch_resid=patch_res,
+        patch_resid=None,
         base_resid=base_res,
-        patch_chain=patch_chain,
+        patch_chain=" ",
         base_chain=base_chain,
         outdir=args.outdir,
         itp_chains=[base_chain.strip()] if base_chain.strip() else [],
         junction_config=junction_config,
-        copy_ff=args.copy_ff,
-        scr_itp=os.path.abspath(args.scr_itp) if args.scr_itp else None,
+        copy_ff=final_ff_files,
+        scr_itp=scr_itp_abs,
     )
 
 

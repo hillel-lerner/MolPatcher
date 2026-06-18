@@ -24,10 +24,6 @@
     "H8",
     "H12"
   ],
-  "patch_files": {
-    "itp": "pfp_patch_new.itp",
-    "pdb": "pfp_patch_new.pdb"
-  },
   "type_mapping": {
     "NZ": "NG311",
     "HZ1": "HGPAM1",

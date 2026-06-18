@@ -260,38 +260,40 @@ class SweepConductor:
         glycan_anchor_idx = None
         scr_anchor_idx = None
 
-        if scr_atoms and moving_atoms:
+        if moving_atoms:
             obj_to_idx = {id(a): i for i, a in enumerate(self.mol.records)}
-
-            # Topologically map the covalent tree starting from the hinge
             hinge_idx = obj_to_idx[id(moving_atoms[0])]
             covalent_tree = nx.node_connected_component(self.graph.nx_graph, hinge_idx)
 
-            # Traverse to find the first covalently attached, non-amino acid atom
-            for atom in moving_atoms:
-                idx = obj_to_idx[id(atom)]
-
+            patch_atoms = []
+            for idx in covalent_tree:
+                atom = self.mol.records[idx]
                 if (
-                    atom.res_name.strip() != "LIG"
-                    and atom.res_name.strip() not in STANDARD_AMINO_ACIDS
+                    atom.res_name.strip() not in STANDARD_AMINO_ACIDS
+                    and atom.res_name.strip() != "LIG"
                 ):
-                    if idx in covalent_tree:
-                        glycan_anchor_idx = idx
-                        break
+                    if atom not in moving_atoms:
+                        patch_atoms.append(atom)
 
-            # Remove temporary virtual bridge
-            if glycan_anchor_idx is not None:
+            moving_atoms.extend(patch_atoms)
+
+            if scr_atoms and patch_atoms:
+                glycan_anchor_idx = obj_to_idx[id(patch_atoms[0])]
                 scr_anchor_idx = obj_to_idx[id(scr_atoms[0])]
                 self.graph.nx_graph.add_edge(glycan_anchor_idx, scr_anchor_idx)
 
-            moving_atoms.extend(scr_atoms)
-            static_atoms = [a for a in static_atoms if a.res_name.strip() != "LIG"]
+            if scr_atoms:
+                moving_atoms.extend(scr_atoms)
+
+            moving_ids = {id(m) for m in moving_atoms}
+            static_atoms = [a for a in static_atoms if id(a) not in moving_ids]
 
         checker = StericChecker(self.graph, moving_atoms, static_atoms)
 
         print("\nStarting Sweep...")
         penalty, pose, coords = self.prot_sweeper.get_best_pose(checker, moving_atoms)
 
+        # Remove temporary virtual bridge
         if glycan_anchor_idx is not None and scr_anchor_idx is not None:
             self.graph.nx_graph.remove_edge(glycan_anchor_idx, scr_anchor_idx)
 

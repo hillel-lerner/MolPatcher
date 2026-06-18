@@ -96,10 +96,5 @@
       60,
       60
     ]
-  ],
-  "charmm_forcefield_files": [
-    "/home/hillel/Data_Files/hillel/charmm36_files/toppar/par_all36_carb.prm",
-    "/home/hillel/Data_Files/hillel/charmm36_files/toppar/par_all36m_prot.prm",
-    "/home/hillel/Data_Files/hillel/charmm36_files/toppar/stream/carb/toppar_all36_carb_glycopeptide.str"
   ]
 }

@@ -288,10 +288,22 @@ class Stitcher:
 
         anchor_serial = target_anchors[2].serial
 
-        # MAPPING AND DELETION LISTS
         base_map = self._build_pdb_to_itp_map(
             self.base.records, self.base.atoms, itp_chains=self.itp_chains
         )
+
+        target_res_records = [
+            r
+            for r in self.base.records
+            if r.res_seq == self.res_id
+            and r.chain.strip() == target_reference.chain.strip()
+        ]
+        for r in target_res_records:
+            if id(r) not in base_map:
+                for a in self.base.atoms:
+                    if a.res_n == self.res_id and a.atmo.strip() == r.name.strip():
+                        base_map[id(r)] = a
+                        break
 
         base_bridge_record = next(
             r

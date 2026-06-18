@@ -190,6 +190,7 @@ class PatchAligner:
         """
 
         self.patch_atoms = patch_atoms
+        self.target_chain = target_anchors[0].chain if target_anchors else " "
 
         if not patch_anchors or not target_anchors:
             self.rotation_object = None
@@ -427,7 +428,7 @@ class PatchAligner:
         base_res = b_config["res_name"]
         patch_res = p_config["res_name"]
 
-        def get_atom(recs, name, res, seq):
+        def get_atom(recs, name, res, seq, chain):
             return next(
                 (
                     r
@@ -435,18 +436,32 @@ class PatchAligner:
                     if r.name.strip() == name
                     and r.res_name.strip() == res
                     and r.res_seq == seq
+                    and r.chain.strip() == chain.strip()
                 ),
                 None,
             )
 
-        at_cg = get_atom(base_records, b_config["primary"], base_res, base_res_idx)
-        at_nd2 = get_atom(base_records, b_config["anchor"], base_res, base_res_idx)
-        at_cb = get_atom(base_records, b_config["ref"], base_res, base_res_idx)
-        # at_od1 = get_atom(base_records, b_config["carbonyl"], base_res, base_res_idx)
+        at_cg = get_atom(
+            base_records, b_config["primary"], base_res, base_res_idx, self.target_chain
+        )
+        at_nd2 = get_atom(
+            base_records, b_config["anchor"], base_res, base_res_idx, self.target_chain
+        )
+        at_cb = get_atom(
+            base_records, b_config["ref"], base_res, base_res_idx, self.target_chain
+        )
 
-        at_c1 = get_atom(patch_records, p_config["anchor"], patch_res, root_idx)
-        at_o5 = get_atom(patch_records, p_config["secondary"], patch_res, root_idx)
-        at_o1 = get_atom(patch_records, p_config["leaving"], patch_res, root_idx)
+        patch_chain = patch_records[0].chain
+
+        at_c1 = get_atom(
+            patch_records, p_config["anchor"], patch_res, root_idx, patch_chain
+        )
+        at_o5 = get_atom(
+            patch_records, p_config["secondary"], patch_res, root_idx, patch_chain
+        )
+        at_o1 = get_atom(
+            patch_records, p_config["leaving"], patch_res, root_idx, patch_chain
+        )
 
         print(
             f"Patch parsed as -> ResName: '{patch_records[0].res_name}', Seq: {patch_records[0].res_seq}"
@@ -754,7 +769,7 @@ class StericChecker:
             m_idx = self.atom_to_idx[m_atom.serial]
 
             close_neighbors = nx.single_source_shortest_path_length(
-                self.mol_graph.nx_graph, m_idx, cutoff=12
+                self.mol_graph.nx_graph, m_idx, cutoff=3
             )
 
             for s_atom in self.static_atoms:
@@ -767,6 +782,20 @@ class StericChecker:
                 m2_idx = self.atom_to_idx[m_atom_2.serial]
                 if m2_idx in close_neighbors:
                     self.excluded_pairs.add((m_atom.serial, m_atom_2.serial))
+
+        self.res_depths = {}
+        if self.moving_atoms:
+            hinge_idx = self.atom_to_idx[self.moving_atoms[0].serial]
+            self.res_depths[hinge_idx] = 0
+
+            for u, v in nx.bfs_edges(self.mol_graph.nx_graph, hinge_idx):
+                u_rec = self.mol_graph.mol.records[u]
+                v_rec = self.mol_graph.mol.records[v]
+
+                if u_rec.res_seq == v_rec.res_seq:
+                    self.res_depths[v] = self.res_depths.get(u, 0)
+                else:
+                    self.res_depths[v] = self.res_depths.get(u, 0) + 1
 
     def check_clashes(self, limit_to_atoms=None):
         """
@@ -869,7 +898,16 @@ class StericChecker:
 
         thresholds = (m_vdw[:, np.newaxis] + e_vdw[np.newaxis, :]) * self.tolerance
 
-        penalties = np.where(distances < thresholds, thresholds - distances, 0.0)
+        # Glycodiside penalties decrease we move to each succesive sugar. This accounts for glycosidic bond flexibility.
+        depths = np.array(
+            [self.res_depths.get(self.atom_to_idx[a.serial], 0) for a in check_list]
+        )
+        weights = 1.0 / (depths + 1.0)
+
+        penetrations = np.where(distances < thresholds, thresholds - distances, 0.0)
+
+        weighted_penetrations = penetrations * weights[:, np.newaxis]
+        penalties = (weighted_penetrations**3) * 50
 
         for i, m_atom in enumerate(check_list):
             for j, s_atom in enumerate(env_heavy):
@@ -881,6 +919,18 @@ class StericChecker:
 
         total_penalty = np.sum(penalties)
         clash_count = np.count_nonzero(penalties)
+
+        # Clash Debugging
+        # clash_indices = np.argwhere(penalties > 0)
+        # if len(clash_indices) > 0:
+        #     print("\n--- DEBUG: Breakdown of Pose Penalty ---")
+        #     for i, j in clash_indices:
+        #         m_atom = check_list[i]
+        #         s_atom = env_heavy[j]
+        #         print(
+        #             f"  {m_atom.name:<4} ({m_atom.res_seq}) hit {s_atom.name:<4} ({s_atom.res_seq}) | Added Penalty: {penalties[i, j]:.2f}"
+        #         )
+        #     print("----------------------------------------")
 
         return total_penalty, clash_count
 
