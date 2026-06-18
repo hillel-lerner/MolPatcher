@@ -168,7 +168,6 @@ The resulting `run.json` supports additional keys for secondary topologies (`scr
 ## License
 
 MolPatcher is distributed under the GNU General Public License v3.0 (GPLv3). See `LICENSE` for more information.
-
 ```
 
 ```
