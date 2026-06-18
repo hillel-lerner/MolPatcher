@@ -22,7 +22,7 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Chemistry"
 ]
-
+license = {file = "LICENSE"}
 [project.scripts]
 molpatcher = "mol_patcher.main:main"
 

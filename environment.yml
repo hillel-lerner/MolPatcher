@@ -8,5 +8,7 @@ dependencies:
   - scipy
   - networkx
   - pip
+  - build
+  - twine
   - pip:
       - -e .
