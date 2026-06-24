@@ -493,8 +493,7 @@ def main():
         print("Error: Input file must specify a 'template' (e.g., 'nglycan_asn').")
 
     main_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(main_dir)
-    config_path = os.path.join(project_root, "configs", f"{template_name}.json")
+    config_path = os.path.join(main_dir, "configs", f"{template_name}.json")
 
     if not os.path.exists(config_path):
         print(f"Error: Could not find template '{template_name}' at {config_path}")
