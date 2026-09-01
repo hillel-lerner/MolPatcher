@@ -78,7 +78,6 @@ class ItpDih:
     """Represents a proper or improper dihedral in a GROMACS [ dihedrals ] directive."""
 
     a1: int
-    a1: int
     a2: int
     a3: int
     a4: int
@@ -87,7 +86,7 @@ class ItpDih:
 
 @dataclass
 class Notes:
-    noite: str
+    note: str
 
 
 @dataclass

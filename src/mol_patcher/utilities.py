@@ -153,7 +153,9 @@ def identify_optimization_clusters(
         if (a.res_seq == base_resid and a.name.strip() not in backbone_names)
         or (a.res_seq in patch_res_seqs)
     ]
-    static_atoms = [a for a in stitched_mol.records if a not in moving_atoms]
+
+    moving_ids = {id(a) for a in moving_atoms}
+
+    static_atoms = [a for a in stitched_mol.records if id(a) not in moving_ids]
 
     return moving_atoms, static_atoms
-

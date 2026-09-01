@@ -89,12 +89,19 @@ def get_downstream_atoms(nx_graph, records, pivot_idx, axis_idx):
 
     temp_nx_graph = nx_graph.copy()
 
-    if temp_nx_graph.has_edge(pivot_idx, axis_idx):
-        temp_nx_graph.remove_edge(pivot_idx, axis_idx)
-    else:
+    if not temp_nx_graph.has_edge(pivot_idx, axis_idx):
         return []
 
-    return list(nx.node_connected_component(temp_nx_graph, axis_idx))
+    temp_nx_graph.remove_edge(pivot_idx, axis_idx)
+
+    downstream = list(nx.node_connected_component(temp_nx_graph, axis_idx))
+
+    if pivot_idx in downstream:
+        raise ValueError(
+            f"Bond {pivot_idx}-{axis_idx} is part of a ring and therefore not rotatable"
+        )
+
+    return downstream
 
 
 class RotamerSweeper:

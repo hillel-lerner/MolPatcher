@@ -849,7 +849,7 @@ class StericChecker:
                 if m_atom_2.name.strip().startswith("H"):
                     continue
 
-                m2_element = m_atom_2.name.strip()
+                m2_element = m_atom_2.name.strip()[0]
                 m2_vdw = self.vdw_radii.get(m2_element, 1.50)
 
                 actual_dist = get_distance(
@@ -969,7 +969,7 @@ class StericChecker:
             m_vdw[:, np.newaxis] + s_vdw[np.newaxis, :]
         ) * docking_tolerance
 
-        clash_mask = distances - clash_thresholds
+        clash_mask = distances < clash_thresholds
         total_penalty = np.sum(
             (clash_thresholds[clash_mask] - distances[clash_mask]) * 100
         )
