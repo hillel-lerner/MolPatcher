@@ -1,5 +1,9 @@
 # MolPatcher: Protein-Ligand Attachment Tool
 
+<p align="center">
+  <img src="./assets/mol_patcher_logo_final.png" alt="Package Logo" width="200"/>
+</p>
+
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 MolPatcher is a Python-based computational chemistry tool designed to automate the geometric alignment, topological merging, and conformational optimization of molecular patches onto target protein residues.
