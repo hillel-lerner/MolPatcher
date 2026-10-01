@@ -1,5 +1,7 @@
 {
-  "system_name": "pfp_peptide",
+  "system_name": "pfp_pep_ser",
+  "target_res_name": "SER",
+  "new_res_name": "SRX",
   "base_anchors": [
     "CA",
     "C",

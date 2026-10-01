@@ -3,17 +3,18 @@ The spatial and topological engine for MolPatcher.
 Handles 3D coordinate manipulation, matrix alignments, graph building, and steric evaluations.
 """
 
-import numpy as np
-from scipy.spatial.transform import Rotation
-from typing import List
-from .mol_record import PdbRecord, Mol
-from .utilities import get_distance, get_dihedral
-import networkx as nx
 import copy
 import sys
 
+import networkx as nx
+import numpy as np
+from scipy.spatial.transform import Rotation
 
-def get_coords_array(atoms: List[PdbRecord]) -> np.ndarray:
+from .mol_record import Mol, PdbRecord
+from .utilities import get_dihedral, get_distance
+
+
+def get_coords_array(atoms: list[PdbRecord]) -> np.ndarray:
     """
     Extracts an Nx3 numpy array of coordinates from any list of PdbRecord objects.
 
@@ -174,9 +175,9 @@ class PatchAligner:
 
     def __init__(
         self,
-        patch_atoms: List[PdbRecord],
-        patch_anchors: List[PdbRecord],
-        target_anchors: List[PdbRecord],
+        patch_atoms: list[PdbRecord],
+        patch_anchors: list[PdbRecord],
+        target_anchors: list[PdbRecord],
     ):
         """
         Constructs the PatchAligner.
@@ -207,7 +208,7 @@ class PatchAligner:
         patch_centered = patch_anchor_coords - patch_centroid
         target_centered = target_anchor_coords - target_centroid
 
-        self.rotation_object, rmsd, *_ = Rotation.align_vectors(
+        self.rotation_object, _rmsd, *_ = Rotation.align_vectors(
             target_centered, patch_centered
         )
         rotated_patch_centroid = self.rotation_object.apply(patch_centroid)
@@ -234,7 +235,7 @@ class PatchAligner:
         return self.patch_atoms
 
     def align_single_bond(
-        self, atoms: List[PdbRecord], at1, at2, at3, at4, target_bond_length
+        self, atoms: list[PdbRecord], at1, at2, at3, at4, target_bond_length
     ):
         """
         Translates and rotates the patch molecule using a single bond vector alignment.
@@ -272,7 +273,9 @@ class PatchAligner:
 
         target_at3_pos = self.at2_coords + (target_vec_normalized * target_bond_length)
 
-        bond_rotation_obj, rmsd, *_ = Rotation.align_vectors([-target_vec], [bond2_vec])
+        bond_rotation_obj, _rmsd, *_ = Rotation.align_vectors(
+            [-target_vec], [bond2_vec]
+        )
 
         for atom in atoms:
             coords = np.array([atom.x, atom.y, atom.z])
@@ -282,7 +285,7 @@ class PatchAligner:
             atom.x, atom.y, atom.z = translated_coords
         return atoms
 
-    def set_junction_dihedral(self, atoms: List[PdbRecord], p1, p2, p3, p4, target_dih):
+    def set_junction_dihedral(self, atoms: list[PdbRecord], p1, p2, p3, p4, target_dih):
         """
         Spins the patch molecule around the new junction bond to match a specific dihedral angle.
 
@@ -319,7 +322,7 @@ class PatchAligner:
 
     def set_junction_angle(
         self,
-        atoms: List[PdbRecord],
+        atoms: list[PdbRecord],
         p1,
         p2,
         p3,
@@ -640,11 +643,7 @@ class MolGraph:
 
                     is_h = is_hydrogen(i) or is_hydrogen(j)
 
-                    if is_h and dist <= self.distXH:
-                        conn_mat[i, j] = 1
-                        conn_mat[j, i] = 1
-
-                    elif not is_h and dist <= self.distXX:
+                    if is_h and dist <= self.distXH or not is_h and dist <= self.distXX:
                         conn_mat[i, j] = 1
                         conn_mat[j, i] = 1
 
@@ -660,12 +659,14 @@ class MolGraph:
                 c_idx = atoms.get("C")
                 n_idx = backbone_map[next_key].get("N")
 
-                # If both atoms exist, generate a bond in the matrix
-                if c_idx is not None and n_idx is not None:
-                    # Double check that the atoms are close enough to actually bond
-                    if get_distance(get_coords(c_idx), get_coords(n_idx)) < 2.0:
-                        conn_mat[c_idx, n_idx] = 1
-                        conn_mat[n_idx, c_idx] = 1
+                # If both atoms exist, generate a bond in the matrix, couble check that the atoms are close enough to actually bond
+                if (
+                    c_idx is not None
+                    and n_idx is not None
+                    and get_distance(get_coords(c_idx), get_coords(n_idx)) < 2.0
+                ):
+                    conn_mat[c_idx, n_idx] = 1
+                    conn_mat[n_idx, c_idx] = 1
 
         # Remove bifurcated H atoms
         for i in range(Natoms):

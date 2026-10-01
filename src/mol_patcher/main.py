@@ -1,19 +1,20 @@
+#!/usr/bin/env python
+
 import argparse
-import os
-import sys
-import shutil
 import json
+import os
+import shutil
+import sys
 from dataclasses import replace
 
-from networkx import config
-from mol_patcher.stitcher import Stitcher
-from mol_patcher.mol_record import Mol
-from mol_patcher.pdb_io import PdbParser, PdbBuilder
-from mol_patcher.topology_io import TopologyParser, TopologyBuilder
-from mol_patcher.geometry import PatchAligner
-from mol_patcher.sweeper import SweepConductor
 from mol_patcher import utilities
 from mol_patcher.combine_ff import ForceField
+from mol_patcher.geometry import PatchAligner
+from mol_patcher.mol_record import Mol
+from mol_patcher.pdb_io import PdbBuilder, PdbParser
+from mol_patcher.stitcher import Stitcher
+from mol_patcher.sweeper import SweepConductor
+from mol_patcher.topology_io import TopologyBuilder, TopologyParser
 
 
 def run_patch(
@@ -352,12 +353,14 @@ def run_patch(
         )
 
         log.write(f"Angles Created ({len(junction_log['angles'])}):\n")
-        for a1, a2, a3 in junction_log["angles"]:
-            log.write(f"  {a1} - {a2} - {a3}\n")
+        log.writelines(
+            f"  {a1} - {a2} - {a3}\n" for a1, a2, a3 in junction_log["angles"]
+        )
 
         log.write(f"Dihedrals Created ({len(junction_log['dihs'])}):\n")
-        for d1, d2, d3, d4 in junction_log["dihs"]:
-            log.write(f"  {d1} - {d2} - {d3} - {d4}\n")
+        log.writelines(
+            f"  {d1} - {d2} - {d3} - {d4}\n" for d1, d2, d3, d4 in junction_log["dihs"]
+        )
         log.write("\n")
 
         log.write("--- GROMACS TOPOLOGY INSTRUCTIONS ---\n")
@@ -400,8 +403,7 @@ def run_patch(
                         log.write("--- JUNCTION FORCEFIELD PARAMETERS ADDED ---\n")
                         header_written = True
                     log.write(f"[ {section} ]\n")
-                    for line in sorted(list(lines)):
-                        log.write(line)
+                    log.writelines(sorted(lines))
                     log.write("\n")
 
     print(f"   --> Wrote execution log to: {log_file_path}")
@@ -459,6 +461,62 @@ def main():
             init_template = {
                 "_comment": "Modifying a Lysine with PFP. Replace filenames with your own.",
                 "template": "pfp_lys",
+                "base": {
+                    "pdb": "protein.pdb",
+                    "itp": "PROB.itp",
+                    "resid": 1,
+                    "chain": "A",
+                },
+                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
+                "forcefields": [],
+            }
+
+        elif args.init == "pfp_pep_ser":
+            init_template = {
+                "_comment": "Modifying a Serine with PFP. Replace filenames with your own.",
+                "template": "pfp_pep_ser",
+                "base": {
+                    "pdb": "protein.pdb",
+                    "itp": "PROB.itp",
+                    "resid": 1,
+                    "chain": "A",
+                },
+                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
+                "forcefields": [],
+            }
+
+        elif args.init == "pfp_pep_ala":
+            init_template = {
+                "_comment": "Modifying an Alanine with PFP. Replace filenames with your own.",
+                "template": "pfp_pep_ala",
+                "base": {
+                    "pdb": "protein.pdb",
+                    "itp": "PROB.itp",
+                    "resid": 1,
+                    "chain": "A",
+                },
+                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
+                "forcefields": [],
+            }
+
+        elif args.init == "pfp_pep_leu":
+            init_template = {
+                "_comment": "Modifying a Leucine with PFP. Replace filenames with your own.",
+                "template": "pfp_pep_leu",
+                "base": {
+                    "pdb": "protein.pdb",
+                    "itp": "PROB.itp",
+                    "resid": 1,
+                    "chain": "A",
+                },
+                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
+                "forcefields": [],
+            }
+
+        elif args.init == "pfp_pep_val":
+            init_template = {
+                "_comment": "Modifying a Valine with PFP. Replace filenames with your own.",
+                "template": "pfp_pep_val",
                 "base": {
                     "pdb": "protein.pdb",
                     "itp": "PROB.itp",
