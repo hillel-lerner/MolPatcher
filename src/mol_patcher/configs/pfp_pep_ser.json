@@ -10,28 +10,26 @@
   "base_bridge": "OT2",
   "base_deletions": [],
   "patch_anchors": [
+    "C11",
     "C10",
-    "C9",
     "O2"
   ],
-  "patch_bridge": "C6",
+  "patch_bridge": "C7",
   "patch_merged_atom": "O2",
   "patch_deletions": [
     "H6",
     "H7",
     "H8",
-    "H9"
+    "H9",
+    "H11"
   ],
   "type_mapping": {
-    "NZ": "NG311",
-    "HZ1": "HGPAM1",
-    "HZ2": "HGPAM1",
-    "HZ3": "HGPAM1"
+    "OT2": "OG301"
   },
   "charge_inheritance": {
     "OT2": "O2",
-    "C": "C9",
-    "CA": "C10"
+    "C": "C10",
+    "CA": "C11"
   },
   "charge_sinks": [
     "HA",
