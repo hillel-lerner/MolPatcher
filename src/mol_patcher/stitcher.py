@@ -4,8 +4,6 @@ to base protein targets. Handles file loading, atom deletion, index offsetting,
 and electrostatic balancing.
 """
 
-import json
-import os
 from dataclasses import replace
 
 from .geometry import MolGraph
@@ -52,12 +50,6 @@ class Stitcher:
         self.base_deletions = []
         self.patch_deletions = []
         self.junction_interactions = []
-
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(current_dir)
-        codes_path = os.path.join(project_root, "configs", "glycan_codes.json")
-        with open(codes_path, "r") as f:
-            self.glycan_codes = json.load(f)
 
     def get_bonded_hydrogens(self, mol, mol_graph, anchors):
         """
@@ -412,12 +404,7 @@ class Stitcher:
 
                 filter_patch_atoms.append(new_atom)
 
-        valid_names_str = (
-            self.glycan_codes.get("res_name", {})
-            .get("PDB", {})
-            .get(target_res_name, target_res_name)
-        )
-        valid_names = valid_names_str.split()
+        valid_names = [target_res_name]
 
         for r in final_records:
             if (

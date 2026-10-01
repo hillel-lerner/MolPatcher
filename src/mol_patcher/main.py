@@ -560,30 +560,35 @@ def main():
     with open(config_path, "r") as f:
         junction_config = json.load(f)
 
-    wdir = os.getcwd()
+    wdir = os.path.dirname(input_path)
     base_data = run_data.get("base", {})
     patch_data = run_data.get("patch", {})
 
-    base_pdb_abs = os.path.join(wdir, base_data.get("pdb", ""))
-    base_itp_abs = os.path.join(wdir, base_data.get("itp", ""))
+    base_pdb_abs = os.path.join(wdir, os.path.expanduser(base_data.get("pdb", "")))
+    base_itp_abs = os.path.join(wdir, os.path.expanduser(base_data.get("itp", "")))
     base_res = int(base_data.get("resid", 0))
     base_chain = str(base_data.get("chain", " "))
 
-    patch_pdb_abs = os.path.join(wdir, patch_data.get("pdb", ""))
-    patch_itp_abs = os.path.join(wdir, patch_data.get("itp", ""))
+    patch_pdb_abs = os.path.join(wdir, os.path.expanduser(patch_data.get("pdb", "")))
+    patch_itp_abs = os.path.join(wdir, os.path.expanduser(patch_data.get("itp", "")))
 
     scr_itp_raw = run_data.get("scr_itp")
-    scr_itp_abs = os.path.join(wdir, scr_itp_raw) if scr_itp_raw else None
+    scr_itp_abs = (
+        os.path.join(wdir, os.path.expanduser(scr_itp_raw)) if scr_itp_raw else None
+    )
 
-    json_ff_files = run_data.get("forcefields", [])
-    combined_ff_files = json_ff_files + args.copy_ff
-    final_ff_files = [os.path.abspath(os.path.join(wdir, f)) for f in combined_ff_files]
+    json_ff_files = [
+        os.path.abspath(os.path.join(wdir, os.path.expanduser(f)))
+        for f in run_data.get("forcefields", [])
+    ]
+    cli_ff_files = [os.path.abspath(os.path.expanduser(f)) for f in args.copy_ff]
+    final_ff_files = json_ff_files + cli_ff_files
 
     input_files = [base_pdb_abs, base_itp_abs, patch_pdb_abs, patch_itp_abs]
     if scr_itp_abs:
         input_files.append(scr_itp_abs)
 
-    missing_files = [f for f in input_files if not os.path.exists(f)]
+    missing_files = [f for f in input_files if not os.path.isfile(f)]
     if missing_files:
         print("\nError: The following required input files could not be found:")
         for f in missing_files:

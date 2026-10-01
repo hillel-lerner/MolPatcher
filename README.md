@@ -24,7 +24,7 @@ MolPatcher is structured for modern Python environments and can be installed dir
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/hillel-lerner/MolPatcher.git](https://github.com/hillel-lerner/MolPatcher.git)
+   git clone https://github.com/hillel-lerner/MolPatcher.git
    cd MolPatcher
    ```
 
