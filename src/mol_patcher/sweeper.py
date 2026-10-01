@@ -4,9 +4,10 @@ Uses graph traversal to isolate moving branches and sweeps canonical rotamer sta
 to resolve steric clashes.
 """
 
-from mol_patcher.utilities import get_dihedral
-from mol_patcher.geometry import StericChecker, rotate_dihedral
 import networkx as nx
+
+from mol_patcher.geometry import StericChecker, rotate_dihedral
+from mol_patcher.utilities import get_dihedral
 
 STANDARD_AMINO_ACIDS = {
     "ALA",
@@ -193,7 +194,7 @@ class RotamerSweeper:
         for i, pose in enumerate(canonical_rotamers):
             self.apply_pose(pose)
 
-            penalty, count = steric_checker.score_pose(limit_to_atoms=moving_atoms)
+            penalty, _count = steric_checker.score_pose(limit_to_atoms=moving_atoms)
 
             if penalty == 0:
                 print(f"      Perfect fit found at Pose {pose}")
@@ -278,9 +279,8 @@ class SweepConductor:
                 if (
                     atom.res_name.strip() not in STANDARD_AMINO_ACIDS
                     and atom.res_name.strip() != "LIG"
-                ):
-                    if atom not in moving_atoms:
-                        patch_atoms.append(atom)
+                ) and atom not in moving_atoms:
+                    patch_atoms.append(atom)
 
             moving_atoms.extend(patch_atoms)
 

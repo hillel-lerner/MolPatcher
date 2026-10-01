@@ -7,7 +7,6 @@ For more information on PDB/ITP file formatting see:
 """
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -100,13 +99,13 @@ class Mol:
 
     name: str
     moltype_section: str = ""
-    records: List[PdbRecord] = field(default_factory=list)
-    atoms: List[ItpAtom] = field(default_factory=list)
-    bonds: List[ItpBond] = field(default_factory=list)
-    pairs: List[ItpPair] = field(default_factory=list)
-    angles: List[ItpAngle] = field(default_factory=list)
-    dihs: List[ItpDih] = field(default_factory=list)
-    notes: List[str] = field(default_factory=list)
+    records: list[PdbRecord] = field(default_factory=list)
+    atoms: list[ItpAtom] = field(default_factory=list)
+    bonds: list[ItpBond] = field(default_factory=list)
+    pairs: list[ItpPair] = field(default_factory=list)
+    angles: list[ItpAngle] = field(default_factory=list)
+    dihs: list[ItpDih] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
     def load_itp(self, itp_path: str):
         """

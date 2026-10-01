@@ -4,12 +4,13 @@ to base protein targets. Handles file loading, atom deletion, index offsetting,
 and electrostatic balancing.
 """
 
+import json
 import os
 from dataclasses import replace
+
 from .geometry import MolGraph
+from .mol_record import ItpAngle, ItpBond, ItpDih, ItpPair, Mol
 from .topology_tools import reindex_topology
-from .mol_record import Mol, ItpBond, ItpAngle, ItpDih, ItpPair
-import json
 
 
 class Stitcher:
@@ -82,9 +83,11 @@ class Stitcher:
             # Fetch all bonded neighbors from the networkx graph
             for n_idx in mol_graph.nx_graph.neighbors(anchor_idx):
                 neighbor_record = mol.records[n_idx]
-                if neighbor_record.name.strip().startswith("H"):
-                    if neighbor_record not in h_to_delete:
-                        h_to_delete.append(neighbor_record)
+                if (
+                    neighbor_record.name.strip().startswith("H")
+                    and neighbor_record not in h_to_delete
+                ):
+                    h_to_delete.append(neighbor_record)
         return h_to_delete
 
     @staticmethod
@@ -127,8 +130,8 @@ class Stitcher:
         i, j = 0, 0
 
         while i < len(scoped_pdb_blocks) and j < len(itp_blocks):
-            p_res = list(scoped_pdb_blocks[i].values())[0].res_name.strip()
-            i_res = list(itp_blocks[j].values())[0].res.strip()
+            p_res = next(iter(scoped_pdb_blocks[i].values())).res_name.strip()
+            i_res = next(iter(itp_blocks[j].values())).res.strip()
 
             if p_res[:2] == i_res[:2]:
                 for atom_name, record_obj in scoped_pdb_blocks[i].items():
@@ -154,12 +157,12 @@ class Stitcher:
                         is_match = True
 
                         for k in range(sync_length):
-                            pk = list(scoped_pdb_blocks[i + offset_i + k].values())[
-                                0
-                            ].res_name.strip()[:2]
-                            ik = list(itp_blocks[j + offset_j + k].values())[
-                                0
-                            ].res.strip()[:2]
+                            pk = next(
+                                iter(scoped_pdb_blocks[i + offset_i + k].values())
+                            ).res_name.strip()[:2]
+                            ik = next(
+                                iter(itp_blocks[j + offset_j + k].values())
+                            ).res.strip()[:2]
                             if pk != ik:
                                 is_match = False
                                 break
@@ -420,9 +423,8 @@ class Stitcher:
             if (
                 r.res_seq == target_reference.res_seq
                 and r.chain == target_reference.chain
-            ):
-                if r.res_name.strip() in valid_names:
-                    r.res_name = new_res_name
+            ) and r.res_name.strip() in valid_names:
+                r.res_name = new_res_name
 
         for atom in filter_patch_atoms:
             atom.number += self.offset
@@ -469,9 +471,8 @@ class Stitcher:
                 if (
                     rec.res_seq == target_reference.res_seq
                     and rec.chain.strip() == target_reference.chain.strip()
-                ):
-                    if a.res.strip() == target_res_name:
-                        a.res = new_res_name
+                ) and a.res.strip() == target_res_name:
+                    a.res = new_res_name
 
         if anch_2_itp_obj is None:
             raise ValueError(
@@ -653,10 +654,9 @@ class Stitcher:
                 rec
                 and rec.res_seq == self.res_id
                 and rec.chain.strip() == target_chain.strip()
-            ):
-                if atom.atom.strip() in type_map:
-                    atom.type = type_map[atom.atom.strip()]
-                    self.retyped_indices.add(atom.number)
+            ) and atom.atom.strip() in type_map:
+                atom.type = type_map[atom.atom.strip()]
+                self.retyped_indices.add(atom.number)
 
         return stitched_mol
 
@@ -686,20 +686,15 @@ class Stitcher:
                 rec
                 and rec.res_seq == self.res_id
                 and rec.chain.strip() == target_chain.strip()
-            ):
-                if base_atom.atom.strip() in anchor_map:
-                    patch_equiv_name = anchor_map[base_atom.atom.strip()]
-                    patch_equiv_atom = next(
-                        a
-                        for a in self.patch.atoms
-                        if a.atom.strip() == patch_equiv_name
-                    )
+            ) and base_atom.atom.strip() in anchor_map:
+                patch_equiv_name = anchor_map[base_atom.atom.strip()]
+                patch_equiv_atom = next(
+                    a for a in self.patch.atoms if a.atom.strip() == patch_equiv_name
+                )
 
-                    old_charge = float(base_atom.charge)
-                    base_atom.charge = float(patch_equiv_atom.charge)
-                    base_atom.comment = (
-                        f"; old charge: {old_charge:.4f} (anchor update)"
-                    )
+                old_charge = float(base_atom.charge)
+                base_atom.charge = float(patch_equiv_atom.charge)
+                base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
 
         possible_sinks = self.config.get("charge_sinks", [])
         active_sinks = []

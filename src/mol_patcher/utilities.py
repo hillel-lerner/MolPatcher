@@ -1,5 +1,6 @@
-import numpy as np
 import math
+
+import numpy as np
 from scipy.spatial.distance import pdist
 
 
@@ -141,11 +142,11 @@ def identify_optimization_clusters(
             (r.res_seq for r in base_records if r.chain.strip() == chain_id.strip()),
             default=base_resid,
         )
-        patch_res_seqs = set(
+        patch_res_seqs = {
             r.res_seq
             for r in stitched_mol.records
             if r.chain.strip() == chain_id.strip() and r.res_seq > max_base_res
-        )
+        }
 
     moving_atoms = [
         a

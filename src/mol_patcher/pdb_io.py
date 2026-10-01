@@ -3,6 +3,7 @@ Handles reading, parsing, formatting, and writing of PDB coordinate files.
 """
 
 import os
+
 from .mol_record import PdbRecord
 
 
@@ -204,10 +205,7 @@ class PdbBuilder:
         :rtype: list
         """
 
-        formatted_lines = []
-
-        for header in self.headers:
-            formatted_lines.append(header)
+        formatted_lines = self.headers.copy()
 
         # =========================================================================
         # PDB ATOM RECORD FORMATTING EXPLANATION
@@ -271,4 +269,3 @@ class PdbBuilder:
         with open(self.new_pdb_name, "w") as file:
             file.writelines(lines)
         print(f"Patched {self.new_pdb_name}")
-

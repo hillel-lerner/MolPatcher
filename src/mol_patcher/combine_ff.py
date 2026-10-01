@@ -2,7 +2,7 @@
 Parses CHARMM forcefield files (.prm, .str), extracts specific topological parameters
 for newly formed molecular junctions, converts them to GROMACS units, and writes
 them to an included .itp file.
-"""
+"""  # noqa: EXE002
 
 import os
 
@@ -88,9 +88,8 @@ class ForceField:
                             current_section = charmm_mapping[clean_line]
                             continue
 
-                        if current_section in self.parameters:
-                            if len(parts) >= 2:
-                                self._convert_and_store(current_section, parts)
+                        if current_section in self.parameters and len(parts) >= 2:
+                            self._convert_and_store(current_section, parts)
 
     def _convert_and_store(self, section, parts):
         """
@@ -249,6 +248,5 @@ class ForceField:
         with open(outfile, "w") as f:
             for header, lines in grouped_output.items():
                 f.write(f"[ {header} ]\n")
-                for line in sorted(list(lines)):
-                    f.write(line)
+                f.writelines(sorted(lines))
                 f.write("\n")

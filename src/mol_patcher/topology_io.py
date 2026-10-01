@@ -3,7 +3,8 @@ Handles parsing, cleaning, and writing of GROMACS .itp topology files.
 """
 
 import os
-from .mol_record import ItpAtom, ItpBond, ItpAngle, ItpDih, ItpPair
+
+from .mol_record import ItpAngle, ItpAtom, ItpBond, ItpDih, ItpPair
 from .topology_tools import reindex_topology
 
 
@@ -87,7 +88,7 @@ class TopologyParser:
                     if str(res_counter) != raw_res:
                         comment_append = f" ; old_res: {raw_res}"
 
-                    formatted_line = f"{parts[0]:>6} {parts[1]:>10} {str(res_counter):>6} {parts[3]:>6} {parts[4]:>6} {parts[5]:>6} {parts[6]:>12} {parts[7]:>12}{comment_append}"
+                    formatted_line = f"{parts[0]:>6} {parts[1]:>10} {res_counter!s:>6} {parts[3]:>6} {parts[4]:>6} {parts[5]:>6} {parts[6]:>12} {parts[7]:>12}{comment_append}"
                     outfile.write(formatted_line + "\n")
                 else:
                     outfile.write(line)
@@ -208,8 +209,7 @@ class TopologyBuilder:
 
         with open(self.filename, "w") as f:
             # Notes
-            for note in self.mol.notes:
-                f.write(f"; {note}\n")
+            f.writelines(f"; {note}\n" for note in self.mol.notes)
             if self.mol.notes:
                 f.write("\n")
 
@@ -237,29 +237,34 @@ class TopologyBuilder:
             # Bonds Section
             if self.mol.bonds:
                 f.write("[ bonds ]\n;  ai    aj  funct\n")
-                for b in self.mol.bonds:
-                    f.write(f"{b.a1:>7d} {b.a2:>7d} {b.type:>7d}\n")
+
+                f.writelines(
+                    f"{b.a1:>7d} {b.a2:>7d} {b.type:>7d}\n" for b in self.mol.bonds
+                )
                 f.write("\n")
 
             # Pairs Section
             if self.mol.pairs:
                 f.write("[ pairs ]\n;  ai    aj  funct\n")
-                for p in self.mol.pairs:
-                    f.write(f"{p.a1:>7d} {p.a2:>7d} {p.type:>7d}\n")
+                f.writelines(
+                    f"{p.a1:>7d} {p.a2:>7d} {p.type:>7d}\n" for p in self.mol.pairs
+                )
                 f.write("\n")
 
             # Angles Section
             if self.mol.angles:
                 f.write("[ angles ]\n;  ai    aj    ak  funct\n")
-                for a in self.mol.angles:
-                    f.write(f"{a.a1:>7d} {a.a2:>7d} {a.a3:>7d} {a.type:>7d}\n")
+                f.writelines(
+                    f"{a.a1:>7d} {a.a2:>7d} {a.a3:>7d} {a.type:>7d}\n"
+                    for a in self.mol.angles
+                )
                 f.write("\n")
 
             # Dihedrals Section
             if self.mol.dihs:
                 f.write("[ dihedrals ]\n;  ai    aj    ak    al  funct\n")
-                for d in self.mol.dihs:
-                    f.write(
-                        f"{d.a1:>7d} {d.a2:>7d} {d.a3:>7d} {d.a4:>7d} {d.type:>7d}\n"
-                    )
+                f.writelines(
+                    f"{d.a1:>7d} {d.a2:>7d} {d.a3:>7d} {d.a4:>7d} {d.type:>7d}\n"
+                    for d in self.mol.dihs
+                )
                 f.write("\n")
