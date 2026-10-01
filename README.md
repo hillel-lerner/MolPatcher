@@ -64,7 +64,7 @@ molpatcher --init pfp_lys
         "pdb": "examples/protein.pdb",
         "itp": "examples/PROB.itp",
         "resid": 188,
-        "chain": "B"
+        "chain": "A"
     },
     "patch": {
         "pdb": "examples/pfp_patch_new.pdb",
