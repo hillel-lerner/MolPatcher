@@ -180,7 +180,7 @@ MolPatcher is distributed under the GNU General Public License v3.0 (GPLv3). See
 If you want to modify the source code or contribute to MolPatcher, it is recommended to set up an isolated development environment using Conda.
 
 ```bash
-git clone [https://github.com/hillel-lerner/MolPatcher.git](https://github.com/hillel-lerner/MolPatcher.git)
+git clone https://github.com/hillel-lerner/MolPatcher.git
 cd MolPatcher
 conda env create -f environment.yml
 conda activate mol_patcher
