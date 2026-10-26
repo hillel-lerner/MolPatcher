@@ -17,6 +17,11 @@
   "patch_bridge": "C1",
   "patch_merged_atom": "O1",
   "patch_deletions": [
+	"H1",
+	"H2",
+	"H3",
+	"H4",
+	"H5"
   ],
   "type_mapping": {
     "OT2": "OG301"
