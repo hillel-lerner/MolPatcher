@@ -154,6 +154,8 @@ def run_patch(
     base_names = list(junction_config["base_anchors"])
     base_names.append(junction_config["base_bridge"])
 
+    sink_names = junction_config.get("charge_sinks", [])
+
     patch_pdb_list = [r.name for r in patch_mol.records]
     patch_topol_list = [a.atom for a in patch_mol.atoms]
 
@@ -164,6 +166,16 @@ def run_patch(
         patch_pdb_list, patch_topol_list, patch_names, "patch"
     )
     base_notvalid = validate_names(base_pdb_list, base_topol_list, base_names, "base")
+    charge_sink_warning = validate_names(
+        base_pdb_list + patch_pdb_list,
+        base_topol_list + patch_topol_list,
+        sink_names,
+        "charge_sinks",
+    )
+
+    if charge_sink_warning:
+        for w in charge_sink_warning:
+            print(f"Charge sinks warning: {w}.")
 
     invalid = []
     invalid.extend(patch_notvalid)
