@@ -296,7 +296,7 @@ class Stitcher:
         for r in target_res_records:
             if id(r) not in base_map:
                 for a in self.base.atoms:
-                    if a.res_n == self.res_id and a.atmo.strip() == r.name.strip():
+                    if a.res_n == self.res_id and a.atom.strip() == r.name.strip():
                         base_map[id(r)] = a
                         break
 

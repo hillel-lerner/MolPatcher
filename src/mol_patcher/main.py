@@ -15,6 +15,7 @@ from mol_patcher.pdb_io import PdbBuilder, PdbParser
 from mol_patcher.stitcher import Stitcher
 from mol_patcher.sweeper import SweepConductor
 from mol_patcher.topology_io import TopologyBuilder, TopologyParser
+from mol_patcher.validate import validate_names
 
 
 def run_patch(
@@ -142,6 +143,35 @@ def run_patch(
         print(
             f"Error: Target residue {base_resid} is '{actual_res_name}', not '{target_res}'. MolPatcher requires a {target_res} residue."
         )
+        return
+
+    patch_names = list(junction_config["patch_anchors"])
+    patch_names.append(junction_config["patch_bridge"])
+    merged = junction_config.get("patch_merged_atom")
+    if merged is not None:
+        patch_names.append(merged)
+
+    base_names = list(junction_config["base_anchors"])
+    base_names.append(junction_config["base_bridge"])
+
+    patch_pdb_list = [r.name for r in patch_mol.records]
+    patch_topol_list = [a.atom for a in patch_mol.atoms]
+
+    base_pdb_list = [r.name for r in target_residue_atoms]
+    base_topol_list = [a.atom for a in base_mol.atoms if a.res_n == base_resid]
+
+    patch_notvalid = validate_names(
+        patch_pdb_list, patch_topol_list, patch_names, "patch"
+    )
+    base_notvalid = validate_names(base_pdb_list, base_topol_list, base_names, "base")
+
+    invalid = []
+    invalid.extend(patch_notvalid)
+    invalid.extend(base_notvalid)
+
+    if invalid:
+        for i in invalid:
+            print(i)
         return
 
     target_anchors = []
