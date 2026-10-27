@@ -10,37 +10,36 @@
   "base_bridge": "OT2",
   "base_deletions": [],
   "patch_anchors": [
-    "C11",
-    "C10",
-    "O2"
+    "C8",
+    "C7",
+    "O1"
   ],
-  "patch_bridge": "C7",
-  "patch_merged_atom": "O2",
+  "patch_bridge": "C1",
+  "patch_merged_atom": "O1",
   "patch_deletions": [
-    "H6",
-    "H7",
-    "H8",
-    "H9",
-    "H11"
+	"H1",
+	"H2",
+	"H3",
+	"H4",
+	"H5"
   ],
   "type_mapping": {
     "OT2": "OG301"
   },
   "charge_inheritance": {
-    "OT2": "O2",
-    "C": "C10",
-    "CA": "C11"
+    "OT2": "O1",
+    "C": "C7",
+    "CA": "C8"
   },
   "charge_sinks": [
     "HA",
-    "HB1",
-    "HB2",
-    "HB3",
-    "H1",
-    "H2",
-    "H3",
-    "H4",
-    "H5"
+    "HB",
+    "HG11",
+    "HG12",
+    "HG13",
+    "HG21",
+    "HG22",
+    "HG23"
   ],
   "target_charge": 0,
   "itp_junction": {
