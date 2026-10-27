@@ -509,10 +509,6 @@ class Stitcher:
 
         stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, b_type))
 
-        # DEBUG: testing if merged atom name is off due to a missing/added field in the pdb/itp
-        print(repr(patch_merged_name), len(self.patch.atoms), len(self.patch.records))
-        print([a.atom for a in self.patch.atoms])
-
         remap_dict = {}
         if patch_merged_name:
             patch_n_idx = (
