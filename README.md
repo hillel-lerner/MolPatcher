@@ -1,7 +1,7 @@
 # MolPatcher: Protein-Ligand Attachment Tool
 
 <p align="center">
-  <img src="./assets/mol_patcher_logo_final.png" alt="Package Logo" width="300"/>
+  <img src="./assets/molpatcher_1.0_logo.png" alt="Package Logo" width="300"/>
 </p>
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -172,9 +172,7 @@ The resulting `run.json` supports additional keys for secondary topologies (`scr
 ## License
 
 MolPatcher is distributed under the GNU General Public License v3.0 (GPLv3). See `LICENSE` for more information.
-```
 
-```
 ## Development & Contributing
 
 If you want to modify the source code or contribute to MolPatcher, it is recommended to set up an isolated development environment using Conda.
