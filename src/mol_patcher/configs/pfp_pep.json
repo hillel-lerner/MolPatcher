@@ -6,8 +6,6 @@
     "SER",
     "VAL"
   ],
-  "target_res_name": "ALA",
-  "new_res_name": "ALX",
   "base_anchors": [
     "CA",
     "C",
@@ -47,6 +45,17 @@
     "OT2"
   ],
   "target_charge": 0,
+  "patch_new_res_charge": {
+    "target_charge": 0,
+    "charge_sinks": [
+      "C1",
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6"
+    ]
+  },
   "itp_junction": {
     "bond_type": 1,
     "angle_type": 5,

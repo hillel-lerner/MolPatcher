@@ -286,8 +286,8 @@ class Stitcher:
 
         patch_new_res_name = self.config.get("patch_new_res_name")
 
-        target_res_name = self.config["target_res_name"]
-        new_res_name = self.config["new_res_name"]
+        target_res_names = self.config["target_res_names"]
+        new_res_name = self.config.get("new_res_name")
 
         anchor_serial = target_anchors[2].serial
 
@@ -416,13 +416,17 @@ class Stitcher:
 
                 filter_patch_atoms.append(new_atom)
 
-        valid_names = [target_res_name]
+        valid_names = target_res_names
 
         for r in final_records:
             if (
-                r.res_seq == target_reference.res_seq
-                and r.chain == target_reference.chain
-            ) and r.res_name.strip() in valid_names:
+                (
+                    r.res_seq == target_reference.res_seq
+                    and r.chain == target_reference.chain
+                )
+                and r.res_name.strip() in valid_names
+                and new_res_name
+            ):
                 r.res_name = new_res_name
 
         for atom in filter_patch_atoms:
@@ -476,9 +480,13 @@ class Stitcher:
                     a.comment = f"; old_res: {true_old_res}"
 
                 if (
-                    rec.res_seq == target_reference.res_seq
-                    and rec.chain.strip() == target_reference.chain.strip()
-                ) and a.res.strip() == target_res_name:
+                    (
+                        rec.res_seq == target_reference.res_seq
+                        and rec.chain.strip() == target_reference.chain.strip()
+                    )
+                    and a.res.strip() in target_res_names
+                    and new_res_name
+                ):
                     a.res = new_res_name
 
         if anch_2_itp_obj is None:
@@ -644,6 +652,17 @@ class Stitcher:
             target_charge=target_chg,
         )
 
+        new_res_charge = self.config.get("patch_new_res_charge")
+        if patch_new_res_name and new_res_charge:
+            stitched_mol = self.balance_electrostatics(
+                stitched_mol,
+                stitched_itp_to_pdb,
+                target_reference.chain,
+                target_charge=new_res_charge.get("target_charge", 0),
+                res_id=target_reference.res_seq + 1,
+                sinks=new_res_charge.get("charge_sinks", []),
+            )
+
         junction_log = {
             "bond": (
                 index_map.get(anch_2_itp, anch_2_itp),
@@ -703,7 +722,9 @@ class Stitcher:
 
                 old_charge = float(base_atom.charge)
                 base_atom.charge = float(patch_equiv_atom.charge)
-                base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
+                prev_comment = getattr(base_atom, "comment", "").strip()
+                note = f"; old charge: {old_charge:.4f} (anchor update)"
+                base_atom.comment = f"{note} {prev_comment}" if prev_comment else note
 
         return stitched_mol
 
@@ -757,7 +778,9 @@ class Stitcher:
             for atom in active_sinks:
                 old_q = float(atom.charge)
                 atom.charge = old_q + q_per_atom
-                atom.comment = f"; balanced (was {old_q:.4f})"
+                prev_comment = getattr(atom, "comment", "").strip()
+                note = f"; balanced (was {old_q:.4f})"
+                atom.comment = f"{note} {prev_comment}" if prev_comment else note
 
         total_stitched_charge = sum(float(a.charge) for a in target_residue_atoms)
         print(

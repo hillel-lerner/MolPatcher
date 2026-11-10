@@ -71,27 +71,8 @@ def run_patch(
     if copy_ff is None:
         copy_ff = []
 
-    target_res = junction_config["target_res_name"]
-    new_res = junction_config["new_res_name"]
-
-    run_folder_name = f"patched_{target_res.lower()}_{base_resid}_PRO{base_chain}"
-    final_outdir = os.path.join(outdir, run_folder_name)
-    infiles_dir = os.path.join(final_outdir, "infiles")
-    toppar_dir = os.path.join(final_outdir, "toppar")
-    os.makedirs(infiles_dir, exist_ok=True)
-    os.makedirs(toppar_dir, exist_ok=True)
-
-    if copy_ff:
-        for ff_file in copy_ff:
-            if os.path.exists(ff_file):
-                shutil.copy2(ff_file, toppar_dir)
-            else:
-                print(f"Warning: Additional forcefield file not found: {ff_file}")
-
-    shutil.copy2(base_pdb, infiles_dir)
-    shutil.copy2(base_itp, infiles_dir)
-    shutil.copy2(patch_pdb, infiles_dir)
-    shutil.copy2(patch_itp, infiles_dir)
+    new_res = junction_config.get("new_res_name")
+    allowed_res = junction_config["target_res_names"]
 
     # Load Patch Data
     parser = PdbParser()
@@ -113,13 +94,6 @@ def run_patch(
         dihs=[],
     )
 
-    safe_itp_path = TopologyParser.clean_itp_file(base_itp, final_outdir)
-    base_mol.load_itp(safe_itp_path)
-
-    # Remove temporary file
-    if safe_itp_path != base_itp and os.path.exists(safe_itp_path):
-        os.remove(safe_itp_path)
-
     # Locate Anchors
     chain_check = base_chain.strip() if base_chain.strip() else ""
     target_residue_atoms = [
@@ -135,15 +109,41 @@ def run_patch(
 
     actual_res_name = target_residue_atoms[0].res_name.strip()
 
-    if actual_res_name == new_res and target_res != new_res:
+    if new_res and actual_res_name == new_res and new_res not in allowed_res:
         print(
             f"Warning: Target residue '{actual_res_name} {base_resid}' is already modified by MolPatcher."
         )
-    elif actual_res_name != target_res and actual_res_name != new_res:
+    elif actual_res_name not in allowed_res and actual_res_name != new_res:
         print(
-            f"Error: Target residue {base_resid} is '{actual_res_name}', not '{target_res}'. MolPatcher requires a {target_res} residue."
+            f"Error: Target residue {base_resid} is '{actual_res_name}'. MolPatcher requires one of: {', '.join(allowed_res)}."
         )
         return
+
+    run_folder_name = f"patched_{actual_res_name.lower()}_{base_resid}_PRO{base_chain}"
+    final_outdir = os.path.join(outdir, run_folder_name)
+    infiles_dir = os.path.join(final_outdir, "infiles")
+    toppar_dir = os.path.join(final_outdir, "toppar")
+    os.makedirs(infiles_dir, exist_ok=True)
+    os.makedirs(toppar_dir, exist_ok=True)
+
+    if copy_ff:
+        for ff_file in copy_ff:
+            if os.path.exists(ff_file):
+                shutil.copy2(ff_file, toppar_dir)
+            else:
+                print(f"Warning: Additional forcefield file not found: {ff_file}")
+
+    shutil.copy2(base_pdb, infiles_dir)
+    shutil.copy2(base_itp, infiles_dir)
+    shutil.copy2(patch_pdb, infiles_dir)
+    shutil.copy2(patch_itp, infiles_dir)
+
+    safe_itp_path = TopologyParser.clean_itp_file(base_itp, final_outdir)
+    base_mol.load_itp(safe_itp_path)
+
+    # Remove temporary file
+    if safe_itp_path != base_itp and os.path.exists(safe_itp_path):
+        os.remove(safe_itp_path)
 
     patch_names = list(junction_config["patch_anchors"])
     patch_names.append(junction_config["patch_bridge"])
@@ -200,7 +200,7 @@ def run_patch(
             target_anchors.append(anchor)
     except StopIteration:
         print(
-            f"Error: {target_res} {base_resid} is missing required anchor atoms ({', '.join(junction_config['base_anchors'])})."
+            f"Error: {actual_res_name.lower()} {base_resid} is missing required anchor atoms ({', '.join(junction_config['base_anchors'])})."
         )
         return
 
@@ -309,7 +309,7 @@ def run_patch(
     # --- OPTIMIZATION (ROTAMER SWEEP) ---
     if "chi_definitions" in junction_config:
         print(
-            f"Flexible template detected. Starting optimization for {target_res} {base_resid}..."
+            f"Flexible template detected. Starting optimization for {actual_res_name.lower()} {base_resid}..."
         )
 
         moving_atoms, static_atoms = utilities.identify_optimization_clusters(
@@ -328,10 +328,10 @@ def run_patch(
 
     # Save outputs
     pdb_outfile = os.path.join(
-        final_outdir, f"patched_{target_res.lower()}_{base_resid}.pdb"
+        final_outdir, f"patched_{actual_res_name.lower()}_{base_resid}.pdb"
     )
     itp_outfile = os.path.join(
-        toppar_dir, f"patched_{target_res.lower()}_{base_resid}.itp"
+        toppar_dir, f"patched_{actual_res_name.lower()}_{base_resid}.itp"
     )
 
     PdbBuilder(pdb_outfile, stitched_mol.records, headers).write_pdb()
@@ -352,7 +352,7 @@ def run_patch(
         ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
         ff_scraper.extract_junction_params(ff_requests)
         junction_ff_path = os.path.join(
-            toppar_dir, f"junction_ff_{target_res.lower()}_{base_resid}.itp"
+            toppar_dir, f"junction_ff_{actual_res_name.lower()}_{base_resid}.itp"
         )
         ff_scraper.write_ff(junction_ff_path)
 
@@ -375,11 +375,13 @@ def run_patch(
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
 
     log_file_path = os.path.join(
-        final_outdir, f"patched_{target_res.lower()}_{base_resid}.log"
+        final_outdir, f"patched_{actual_res_name.lower()}_{base_resid}.log"
     )
     with open(log_file_path, "w") as log:
         log.write("========== MOLPATCHER EXECUTION LOG ==========\n")
-        log.write(f"Target : {target_res} {base_resid} (Chain {chain_check})\n")
+        log.write(
+            f"Target : {actual_res_name.lower()} {base_resid} (Chain {chain_check})\n"
+        )
         log.write(f"Patch  : {os.path.basename(patch_pdb)}\n")
         log.write("==============================================\n\n")
 
@@ -421,9 +423,10 @@ def run_patch(
         log.write(f"Optimal Cubic Box     : {box_size} nm\n\n")
 
         log.write("--- APPLIED CONFIGURATION ---\n")
-        log.write(
-            f"Residue Mutation : {junction_config.get('target_res_name')} -> {junction_config.get('new_res_name')}\n"
-        )
+        if new_res:
+            log.write(
+                f"Residue Mutation : {junction_config.get('target_res_name')} -> {junction_config.get('new_res_name')}\n"
+            )
         log.write(
             f"Anchors Used     : Base ({junction_config.get('base_bridge')}), Patch ({junction_config.get('patch_bridge')})\n"
         )
@@ -559,6 +562,9 @@ def main():
 
     with open(config_path, "r") as f:
         junction_config = json.load(f)
+
+    if "target_res_names" not in junction_config:
+        junction_config["target_res_names"] = [junction_config["target_res_name"]]
 
     wdir = os.path.dirname(input_path)
     base_data = run_data.get("base", {})
