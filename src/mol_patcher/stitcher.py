@@ -632,6 +632,11 @@ class Stitcher:
             stitched_itp_to_pdb,
             target_reference.chain,
         )
+        stitched_mol = self.inherit_charges(
+            stitched_mol,
+            stitched_itp_to_pdb,
+            target_reference.chain,
+        )
         stitched_mol = self.balance_electrostatics(
             stitched_mol,
             stitched_itp_to_pdb,
@@ -681,24 +686,7 @@ class Stitcher:
 
         return stitched_mol
 
-    def balance_electrostatics(
-        self, stitched_mol, stitched_itp_to_pdb, target_chain, target_charge=0
-    ):
-        """
-        Balances the electrostatic charge of the patched residue to ensure an integer net charge.
-
-        :param stitched_mol: The combined molecule object containing the new junction.
-        :type stitched_mol: Mol
-        :param stitched_itp_to_pdb: Dictionary mapping ITP atoms back to PDB coordinates.
-        :type stitched_itp_to_pdb: dict
-        :param target_chain: The specific chain ID being modified.
-        :type target_chain: str
-        :param target_charge: The desired net charge of the residue, defaults to 0.
-        :type target_charge: int, optional
-        :return: The molecule with updated and balanced fractional charges.
-        :rtype: Mol
-        """
-
+    def inherit_charges(self, stitched_mol, stitched_itp_to_pdb, target_chain):
         anchor_map = self.config.get("charge_inheritance", {})
 
         for base_atom in stitched_mol.atoms:
@@ -717,7 +705,36 @@ class Stitcher:
                 base_atom.charge = float(patch_equiv_atom.charge)
                 base_atom.comment = f"; old charge: {old_charge:.4f} (anchor update)"
 
-        possible_sinks = self.config.get("charge_sinks", [])
+        return stitched_mol
+
+    def balance_electrostatics(
+        self,
+        stitched_mol,
+        stitched_itp_to_pdb,
+        target_chain,
+        target_charge=0,
+        res_id=None,
+        sinks=None,
+    ):
+        """
+        Balances the electrostatic charge of the patched residue to ensure an integer net charge.
+
+        :param stitched_mol: The combined molecule object containing the new junction.
+        :type stitched_mol: Mol
+        :param stitched_itp_to_pdb: Dictionary mapping ITP atoms back to PDB coordinates.
+        :type stitched_itp_to_pdb: dict
+        :param target_chain: The specific chain ID being modified.
+        :type target_chain: str
+        :param target_charge: The desired net charge of the residue, defaults to 0.
+        :type target_charge: int, optional
+        :return: The molecule with updated and balanced fractional charges.
+        :rtype: Mol
+        """
+        if res_id is None:
+            res_id = self.res_id
+        if sinks is None:
+            sinks = self.config.get("charge_sinks", [])
+
         active_sinks = []
         target_residue_atoms = []
 
@@ -725,11 +742,11 @@ class Stitcher:
             rec = stitched_itp_to_pdb.get(a.number)
             if (
                 rec
-                and rec.res_seq == self.res_id
+                and rec.res_seq == res_id
                 and rec.chain.strip() == target_chain.strip()
             ):
                 target_residue_atoms.append(a)
-                if a.atom.strip() in possible_sinks:
+                if a.atom.strip() in sinks:
                     active_sinks.append(a)
 
         current_sum = sum(float(a.charge) for a in target_residue_atoms)
@@ -744,7 +761,7 @@ class Stitcher:
 
         total_stitched_charge = sum(float(a.charge) for a in target_residue_atoms)
         print(
-            f"Total Stitched Charge for Res {self.res_id} (Chain {target_chain.strip()}): {total_stitched_charge:.6f}"
+            f"Total Stitched Charge for Res {res_id} (Chain {target_chain.strip()}): {total_stitched_charge:.6f}"
         )
         return stitched_mol
 
