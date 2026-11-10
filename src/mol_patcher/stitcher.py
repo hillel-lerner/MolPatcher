@@ -276,7 +276,15 @@ class Stitcher:
 
         base_bridge_name = self.config["base_bridge"]
         patch_bridge_name = self.config["patch_bridge"]
-        patch_merged_name = self.config.get("patch_merged_atom", None)
+
+        merged_map = self.config.get("patch_merged_atoms")
+
+        if merged_map is None:
+            single = self.config.get("patch_merged_atom")
+            merged_map = {single: base_bridge_name} if single else {}
+        is_merged = bool(merged_map)
+
+        patch_new_res_name = self.config.get("patch_new_res_name")
 
         target_res_name = self.config["target_res_name"]
         new_res_name = self.config["new_res_name"]
@@ -368,10 +376,14 @@ class Stitcher:
             if (
                 record not in self.patch_deletions
                 and record not in patch_overlap_anchors
+                and record.name.strip() not in merged_map
             ):
                 original_atom = self.patch.atoms[i]
 
-                if patch_merged_name:
+                if patch_new_res_name:
+                    apply_res_name = patch_new_res_name
+                    apply_res_seq = target_reference.res_seq + 1
+                elif is_merged:
                     apply_res_name = new_res_name
                     apply_res_seq = target_reference.res_seq
                 else:
@@ -421,7 +433,15 @@ class Stitcher:
         patch_angles = self._shift_topology_indices(self.patch.angles, self.offset)
         patch_dihs = self._shift_topology_indices(self.patch.dihs, self.offset)
 
-        if patch_merged_name:
+        if patch_new_res_name:
+            last_res_idx = max(
+                i
+                for i, r in enumerate(final_records)
+                if r.res_seq == self.res_id
+                and r.chain.strip() == target_reference.chain.strip()
+            )
+            insert_idx_records = last_res_idx + 1
+        elif is_merged:
             insert_idx_records = (
                 next(
                     i for i, r in enumerate(final_records) if r.serial == anchor_serial
@@ -466,7 +486,18 @@ class Stitcher:
                 f"Error: Anchor atom {base_bridge_name} could not be found in the topology."
             )
 
-        if patch_merged_name:
+        if patch_new_res_name:
+            last_res_atom_idx = max(
+                i
+                for i, a in enumerate(final_atoms)
+                if old_itp_to_pdb.get(a.number)
+                and old_itp_to_pdb[a.number].res_seq == self.res_id
+                and old_itp_to_pdb[a.number].chain.strip()
+                == target_reference.chain.strip()
+            )
+            insert_idx_atoms = last_res_atom_idx + 1
+
+        elif is_merged:
             insert_idx_atoms = final_atoms.index(anch_2_itp_obj) + 1
         else:
             last_res_atom_idx = max(
@@ -510,16 +541,17 @@ class Stitcher:
         stitched_mol.bonds.append(ItpBond(anch_2_itp, patch_bridge_idx, b_type))
 
         remap_dict = {}
-        if patch_merged_name:
-            patch_n_idx = (
-                next(
-                    a.number
-                    for a in self.patch.atoms
-                    if a.atom.strip() == patch_merged_name.strip()
-                )
-                + self.offset
-            )
-            remap_dict = {patch_n_idx: anch_2_itp}
+        if is_merged:
+            base_by_name = {
+                r.name.strip(): base_map[id(r)]
+                for r in target_res_records
+                if id(r) in base_map
+            }
+            patch_by_name = {a.atom.strip(): a for a in self.patch.atoms}
+
+            for patch_name, base_name in merged_map.items():
+                patch_num = patch_by_name[patch_name.strip()].number + self.offset
+                remap_dict[patch_num] = base_by_name[base_name.strip()].number
 
         pre_reindex_mapping = {}
         for old_num, record in old_itp_to_pdb.items():
@@ -554,7 +586,9 @@ class Stitcher:
             and r.chain.strip() == target_reference.chain.strip()
         )
 
-        if patch_merged_name:
+        if patch_new_res_name:
+            expected_patch_res_seq = target_reference.res_seq + 1
+        elif is_merged:
             expected_patch_res_seq = target_reference.res_seq
         else:
             orig_bridge_rec = next(

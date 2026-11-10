@@ -513,52 +513,10 @@ def main():
                 "forcefields": [],
             }
 
-        elif args.init == "pfp_pep_ser":
+        elif args.init == "pfp_pep":
             init_template = {
-                "_comment": "Modifying a Serine with PFP. Replace filenames with your own.",
-                "template": "pfp_pep_ser",
-                "base": {
-                    "pdb": "protein.pdb",
-                    "itp": "PROB.itp",
-                    "resid": 1,
-                    "chain": "A",
-                },
-                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
-                "forcefields": [],
-            }
-
-        elif args.init == "pfp_pep_ala":
-            init_template = {
-                "_comment": "Modifying an Alanine with PFP. Replace filenames with your own.",
-                "template": "pfp_pep_ala",
-                "base": {
-                    "pdb": "protein.pdb",
-                    "itp": "PROB.itp",
-                    "resid": 1,
-                    "chain": "A",
-                },
-                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
-                "forcefields": [],
-            }
-
-        elif args.init == "pfp_pep_leu":
-            init_template = {
-                "_comment": "Modifying a Leucine with PFP. Replace filenames with your own.",
-                "template": "pfp_pep_leu",
-                "base": {
-                    "pdb": "protein.pdb",
-                    "itp": "PROB.itp",
-                    "resid": 1,
-                    "chain": "A",
-                },
-                "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
-                "forcefields": [],
-            }
-
-        elif args.init == "pfp_pep_val":
-            init_template = {
-                "_comment": "Modifying a Valine with PFP. Replace filenames with your own.",
-                "template": "pfp_pep_val",
+                "_comment": "Modifying a peptide with PFP. Replace filenames with your own.",
+                "template": "pfp_pep",
                 "base": {
                     "pdb": "protein.pdb",
                     "itp": "PROB.itp",

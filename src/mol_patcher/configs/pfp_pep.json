@@ -1,7 +1,13 @@
 {
-  "system_name": "pfp_pep_leu",
-  "target_res_name": "LEU",
-  "new_res_name": "LEX",
+  "system_name": "pfp_pep",
+  "target_res_names": [
+    "ALA",
+    "LEU",
+    "SER",
+    "VAL"
+  ],
+  "target_res_name": "ALA",
+  "new_res_name": "ALX",
   "base_anchors": [
     "CA",
     "C",
@@ -15,26 +21,30 @@
     "O1"
   ],
   "patch_bridge": "C1",
-  "patch_merged_atom": "O1",
+  "patch_merged_atoms": {
+    "C8": "CA",
+    "C7": "C",
+    "O2": "OT1",
+    "O1": "OT2"
+  },
+  "patch_new_res_name": "PFP",
   "patch_deletions": [
-	"H1",
-	"H2",
-	"H3",
-	"H4",
-	"H5"
+    "H1",
+    "H2",
+    "H3"
   ],
   "type_mapping": {
-    "OT2": "OG301"
+    "OT2": "OG302"
   },
   "charge_inheritance": {
     "OT2": "O1",
     "C": "C7",
-    "CA": "C8"
+    "OT1": "O2"
   },
   "charge_sinks": [
-    "HA",
-    "HB1",
-    "HB2"
+    "C",
+    "OT1",
+    "OT2"
   ],
   "target_charge": 0,
   "itp_junction": {
