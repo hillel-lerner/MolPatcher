@@ -598,6 +598,7 @@ def main():
                     "chain": "A",
                 },
                 "patch": {"pdb": "patch.pdb", "itp": "patch.itp"},
+                "forcefield_name": "",
                 "forcefields": [],
             }
 
