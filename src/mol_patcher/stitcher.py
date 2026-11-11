@@ -568,6 +568,33 @@ class Stitcher:
         for record, original_atom in zip(filter_patch_records, filter_patch_atoms):
             pre_reindex_mapping[original_atom.number] = record
 
+        # ===== Filtering out incorrect improper dihedrals post-stitching =====
+        patch_improper_sets = set()
+        for d in patch_dihs:
+            if d.type == 2:
+                atoms = [remap_dict.get(a, a) for a in (d.a1, d.a2, d.a3, d.a4)]
+                patch_improper_sets.add(frozenset(atoms))
+
+        kept_base_dihs = []
+        for d in self.base.dihs:
+            if (
+                d.type == 2
+                and frozenset((d.a1, d.a2, d.a3, d.a4)) in patch_improper_sets
+            ):
+                continue
+            kept_base_dihs.append(d)
+
+        n_removed = len(self.base.dihs) - len(kept_base_dihs)
+        stitched_mol.dihs = kept_base_dihs + patch_dihs
+        if n_removed:
+            print(
+                f"Removed {n_removed} base improper(s) replaced by patch impropers on the same atoms."
+            )
+            stitched_mol.notes.append(
+                f"Removed {n_removed} base improper(s) replaced by patch impropers on the same atoms."
+            )
+
+        # ===== Topology Reindexing =====
         index_map = reindex_topology(stitched_mol, remap_dict)
 
         stitched_itp_to_pdb = {}
