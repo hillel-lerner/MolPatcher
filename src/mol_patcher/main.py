@@ -15,7 +15,7 @@ from mol_patcher.mol_record import Mol
 from mol_patcher.pdb_io import PdbBuilder, PdbParser
 from mol_patcher.stitcher import Stitcher
 from mol_patcher.sweeper import SweepConductor
-from mol_patcher.topology_io import TopologyBuilder, TopologyParser
+from mol_patcher.topology_io import TopologyBuilder, TopologyParser, write_top
 from mol_patcher.validate import validate_names
 
 
@@ -418,10 +418,22 @@ def run_patch(
                 real_mol_name = line.split()[0]  # Grabs the first string (e.g., "PROB")
                 break
 
+    # generate the topol.top file
+    top_path = os.path.join(final_outdir, "topol.top")
+    ff_name = junction_config.get("forcefield")
+    includes = []
+    if ff_scraper:
+        includes.append(os.path.relpath(junction_ff_path, final_outdir))
+    includes.append(os.path.relpath(itp_outfile, final_outdir))
+    system_name = f"patched_{actual_res_name.lower()}_{base_resid}"
+
+    write_top(top_path, ff_name, includes, real_mol_name, system_name)
+
     # ---------------------------------------------------------
     # TERMINAL OUTPUT & LOG FILE GENERATION
     # ---------------------------------------------------------
     print(f"\nSuccessfully generated topology: {itp_outfile}")
+    print(f"   --> Wrote starting topology to: {top_path}")
     print(f"   --> Molecule Max Diagonal : {round(box_size - applied_buffer, 3)} nm")
     print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
@@ -460,6 +472,11 @@ def run_patch(
         log.write("\n")
 
         log.write("--- GROMACS TOPOLOGY INSTRUCTIONS ---\n")
+        log.write(
+            f"A starting topology was written to {os.path.basename(top_path)} (patched molecule only).\n"
+            "Solvent, ions and other molecules must be added by hand; see its header.\n"
+            "To merge into an existing .top instead, follow the steps below.\n\n"
+        )
         log.write(
             "1. Add the following to your master .top file (after the forcefield #includes, in this order):\n"
         )
