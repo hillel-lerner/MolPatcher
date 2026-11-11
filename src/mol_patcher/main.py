@@ -433,7 +433,7 @@ def run_patch(
     # TERMINAL OUTPUT & LOG FILE GENERATION
     # ---------------------------------------------------------
     print(f"\nSuccessfully generated topology: {itp_outfile}")
-    print(f"   --> Wrote starting topology to: {top_path}\n")
+    print(f"   --> Wrote starting topology to: {top_path}")
     print(f"   --> Molecule Max Diagonal : {round(box_size - applied_buffer, 3)} nm")
     print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
