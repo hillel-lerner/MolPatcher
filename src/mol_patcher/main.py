@@ -640,7 +640,7 @@ def main():
 
     ff_name_override = run_data.get("forcefield_name")
     if ff_name_override:
-        junction_config["forcefield_name"] = ff_name_override
+        junction_config["forcefield_name"] = os.path.expanduser(ff_name_override)
 
     wdir = os.path.dirname(input_path)
     base_data = run_data.get("base", {})

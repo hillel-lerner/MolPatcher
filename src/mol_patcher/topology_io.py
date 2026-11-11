@@ -301,7 +301,13 @@ def top_lines(ff_name, includes, mol_name, system_name):
     lines.append("")
     lines.append("; Include forcefield parameters")
     if ff_name:
-        lines.append(f'#include "{ff_name}.ff/forcefield.itp"')
+        if ff_name.endswith(".itp"):
+            ff_include = ff_name
+        elif ff_name.endswith(".ff"):
+            ff_include = f"{ff_name}/forcefield.itp"
+        else:
+            ff_include = f"{ff_name}.ff/forcefield.itp"
+        lines.append(f'#include "{ff_include}"')
     else:
         lines.append(
             '; #include "<forcefield>.ff/forcefield.itp"   <- set your force field'
