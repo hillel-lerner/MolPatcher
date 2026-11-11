@@ -389,20 +389,25 @@ def run_patch(
     )
 
     ff_refs = junction_config.get("charmm_forcefield_files", [])
+    ff_params = junction_config.get("ff_parameters", {})
     ff_scraper = None
+    junction_ff_path = os.path.join(
+        toppar_dir, f"junction_ff_{actual_res_name.lower()}_{base_resid}.itp"
+    )
 
-    if ff_refs:
-        print("Scraping junction parameters from CHARMM database...")
+    if ff_refs or any(ff_params.values()):
         ff_scraper = ForceField(ff_refs)
-        ff_scraper.read_database()
 
-        ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
-        ff_scraper.extract_junction_params(ff_requests)
-        junction_ff_path = os.path.join(
-            toppar_dir, f"junction_ff_{actual_res_name.lower()}_{base_resid}.itp"
-        )
+        if ff_refs:
+            print("Scraping junction parameters from CHARMM database...")
+            ff_scraper.read_database()
+            ff_requests = stitcher.generate_ff_requests(stitched_mol, junction_log)
+            ff_scraper.extract_junction_params(ff_requests)
+
+        for section, lines in ff_params.items():
+            ff_scraper.junction_output[section].update(lines)
+
         ff_scraper.write_ff(junction_ff_path)
-
         print(f"   --> Wrote junction parameters to: {junction_ff_path}")
 
     real_mol_name = stitched_mol.name
@@ -456,8 +461,10 @@ def run_patch(
 
         log.write("--- GROMACS TOPOLOGY INSTRUCTIONS ---\n")
         log.write(
-            "1. Add the following to your master .top file (after the forcefield #includes):\n"
+            "1. Add the following to your master .top file (after the forcefield #includes, in this order):\n"
         )
+        if ff_scraper:
+            log.write(f'   #include "{os.path.basename(junction_ff_path)}"\n')
         log.write(f'   #include "{os.path.basename(itp_outfile)}"\n\n')
         log.write(
             "2. Add the following to the [ molecules ] directive at the bottom of your .top file:\n"

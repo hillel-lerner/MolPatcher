@@ -220,7 +220,7 @@ class ForceField:
 
     def write_ff(self, outfile):
         """
-        Writes scraped junction parameters to a GROMACS itp file.
+        Writes junction parameters (scraped and from the template) to a GROMACS itp file.
 
         :param outfile: The target filepath to write the topology parameters.
         :type outfile: str
@@ -229,6 +229,7 @@ class ForceField:
 
         # Translator map for strict GROMACS global directives
         gmx_headers = {
+            "atomtypes": "atomtypes",
             "bonds": "bondtypes",
             "angles": "angletypes",
             "dihedrals_proper": "dihedraltypes",
