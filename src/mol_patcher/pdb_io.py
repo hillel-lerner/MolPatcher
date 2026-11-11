@@ -30,16 +30,18 @@ class PdbParser:
 
         print("   -> Missing chain IDs detected in PDB. Patching via seg_id...")
 
+        count = 0
         for atom in records:
             chain = atom.chain
             if chain == " ":
                 if atom.seg_id:
                     chain = atom.seg_id[-1]
                 else:
-                    print(
-                        f"No chain identified for atom {atom.serial}, setting to blank."
-                    )
+                    count += 1
             atom.chain = chain
+
+        if count:
+            print(f"   -> No chain ID or segID for {count} atoms; chain left blank.")
         return records
 
     def fix_res_num(self, records):
