@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 from dataclasses import replace
 
 from mol_patcher import utilities
@@ -119,6 +120,100 @@ def run_patch(
         )
         return
 
+    with tempfile.TemporaryDirectory() as tmp:
+        safe_itp_path = TopologyParser.clean_itp_file(base_itp, tmp)
+        base_mol.load_itp(safe_itp_path)
+
+    patch_names = list(junction_config["patch_anchors"])
+    patch_names.append(junction_config["patch_bridge"])
+    merged = junction_config.get("patch_merged_atom")
+    if merged is not None:
+        patch_names.append(merged)
+
+    base_names = list(junction_config["base_anchors"])
+    base_names.append(junction_config["base_bridge"])
+
+    sink_names = junction_config.get("charge_sinks", [])
+
+    merged_names = junction_config.get("patch_merged_atoms", {})
+    patch_names.extend(merged_names.keys())
+    base_names.extend(merged_names.values())
+
+    patch_names.extend(junction_config.get("patch_deletions", []))
+    base_names.extend(junction_config.get("base_deletions", []))
+
+    patch_pdb_list = [r.name for r in patch_mol.records]
+    patch_topol_list = [a.atom for a in patch_mol.atoms]
+
+    base_pdb_list = [r.name for r in target_residue_atoms]
+    base_topol_list = [a.atom for a in base_mol.atoms if a.res_n == base_resid]
+
+    patch_notvalid = validate_names(
+        patch_pdb_list, patch_topol_list, patch_names, "patch"
+    )
+    base_notvalid = validate_names(base_pdb_list, base_topol_list, base_names, "base")
+
+    pfp_res = junction_config.get("patch_new_res_name")
+
+    if pfp_res:
+        sink_pdb = base_pdb_list
+        sink_topol = base_topol_list
+    else:
+        sink_pdb = base_pdb_list + patch_pdb_list
+        sink_topol = base_topol_list + patch_topol_list
+
+    charge_sink_warning = validate_names(
+        sink_pdb, sink_topol, sink_names, "charge_sinks"
+    )
+
+    new_res_sinks = junction_config.get("patch_new_res_charge", {}).get(
+        "charge_sinks", []
+    )
+    charge_sink_warning.extend(
+        validate_names(patch_pdb_list, patch_topol_list, new_res_sinks, "new_res_sinks")
+    )
+
+    if charge_sink_warning:
+        for w in charge_sink_warning:
+            print(f"Charge sinks warning: {w}.")
+
+    invalid = []
+    invalid.extend(patch_notvalid)
+    invalid.extend(base_notvalid)
+
+    if pfp_res:
+        last_res = max(
+            r.res_seq
+            for r in base_mol.records
+            if not chain_check or r.chain.strip() == chain_check
+        )
+        if last_res != base_resid:
+            invalid.append(
+                f"Error: residue {base_resid} is not the last residue in chain '{chain_check}' (last is {last_res}). The PFP residue must be C-terminal."
+            )
+        if any(a.res_n == base_resid + 1 for a in base_mol.atoms):
+            invalid.append(
+                f"Error: the base topology already has a residue {base_resid + 1}. The target is not C-terminal, or it was already patched."
+            )
+        if len(pfp_res) > 4:
+            invalid.append(
+                f"Error: patch_new_res_name '{pfp_res}' is longer than 4 characters."
+            )
+
+    has_merge = junction_config.get("patch_merged_atoms") or junction_config.get(
+        "patch_merged_atom"
+    )
+
+    if has_merge and not pfp_res and not junction_config.get("new_res_name"):
+        invalid.append(
+            "Error: a merged template without patch_new_res_name must set new_res_name."
+        )
+
+    if invalid:
+        for i in invalid:
+            print(i)
+        return
+
     run_folder_name = f"patched_{actual_res_name.lower()}_{base_resid}_PRO{base_chain}"
     final_outdir = os.path.join(outdir, run_folder_name)
     infiles_dir = os.path.join(final_outdir, "infiles")
@@ -137,54 +232,6 @@ def run_patch(
     shutil.copy2(base_itp, infiles_dir)
     shutil.copy2(patch_pdb, infiles_dir)
     shutil.copy2(patch_itp, infiles_dir)
-
-    safe_itp_path = TopologyParser.clean_itp_file(base_itp, final_outdir)
-    base_mol.load_itp(safe_itp_path)
-
-    # Remove temporary file
-    if safe_itp_path != base_itp and os.path.exists(safe_itp_path):
-        os.remove(safe_itp_path)
-
-    patch_names = list(junction_config["patch_anchors"])
-    patch_names.append(junction_config["patch_bridge"])
-    merged = junction_config.get("patch_merged_atom")
-    if merged is not None:
-        patch_names.append(merged)
-
-    base_names = list(junction_config["base_anchors"])
-    base_names.append(junction_config["base_bridge"])
-
-    sink_names = junction_config.get("charge_sinks", [])
-
-    patch_pdb_list = [r.name for r in patch_mol.records]
-    patch_topol_list = [a.atom for a in patch_mol.atoms]
-
-    base_pdb_list = [r.name for r in target_residue_atoms]
-    base_topol_list = [a.atom for a in base_mol.atoms if a.res_n == base_resid]
-
-    patch_notvalid = validate_names(
-        patch_pdb_list, patch_topol_list, patch_names, "patch"
-    )
-    base_notvalid = validate_names(base_pdb_list, base_topol_list, base_names, "base")
-    charge_sink_warning = validate_names(
-        base_pdb_list + patch_pdb_list,
-        base_topol_list + patch_topol_list,
-        sink_names,
-        "charge_sinks",
-    )
-
-    if charge_sink_warning:
-        for w in charge_sink_warning:
-            print(f"Charge sinks warning: {w}.")
-
-    invalid = []
-    invalid.extend(patch_notvalid)
-    invalid.extend(base_notvalid)
-
-    if invalid:
-        for i in invalid:
-            print(i)
-        return
 
     target_anchors = []
 
