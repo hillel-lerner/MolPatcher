@@ -420,7 +420,7 @@ def run_patch(
 
     # generate the topol.top file
     top_path = os.path.join(final_outdir, "topol.top")
-    ff_name = junction_config.get("forcefield")
+    ff_name = junction_config.get("forcefield_name")
     includes = []
     if ff_scraper:
         includes.append(os.path.relpath(junction_ff_path, final_outdir))
@@ -433,7 +433,7 @@ def run_patch(
     # TERMINAL OUTPUT & LOG FILE GENERATION
     # ---------------------------------------------------------
     print(f"\nSuccessfully generated topology: {itp_outfile}")
-    print(f"   --> Wrote starting topology to: {top_path}")
+    print(f"   --> Wrote starting topology to: {top_path}\n")
     print(f"   --> Molecule Max Diagonal : {round(box_size - applied_buffer, 3)} nm")
     print(f"   --> Applied PBC Buffer    : {applied_buffer} nm")
     print(f"   --> Optimal Cubic Box     : {box_size} nm")
@@ -636,6 +636,10 @@ def main():
 
     if "target_res_names" not in junction_config:
         junction_config["target_res_names"] = [junction_config["target_res_name"]]
+
+    ff_name_override = run_data.get("forcefield_name")
+    if ff_name_override:
+        junction_config["forcefield_name"] = ff_name_override
 
     wdir = os.path.dirname(input_path)
     base_data = run_data.get("base", {})

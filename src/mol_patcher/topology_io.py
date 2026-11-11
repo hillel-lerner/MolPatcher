@@ -309,7 +309,7 @@ def top_lines(ff_name, includes, mol_name, system_name):
     lines.extend(f'#include "{i}"' for i in includes)
     lines.append("")
     lines.append("[ system ]")
-    lines.append(f"{system_name:<15} 1")
+    lines.append(f"{system_name}")
     lines.append("")
     lines.append("[ molecules ]")
     lines.append(f"{mol_name:<15} 1")
