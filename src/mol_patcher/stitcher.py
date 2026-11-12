@@ -529,6 +529,7 @@ class Stitcher:
             self.base.pairs + patch_pairs,
             self.base.angles + patch_angles,
             self.base.dihs + patch_dihs,
+            list(self.base.cmap),
         )
 
         junction_cfg = self.config.get("itp_junction", {})
@@ -659,6 +660,7 @@ class Stitcher:
         stitched_mol.pairs.sort(key=lambda x: x.a1)
         stitched_mol.angles.sort(key=lambda x: x.a1)
         stitched_mol.dihs.sort(key=lambda x: x.a1)
+        stitched_mol.cmap.sort(key=lambda x: x.a1)
 
         target_chg = self.config.get("target_charge", 0)
         stitched_mol = self.update_atom_types(

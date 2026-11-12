@@ -4,7 +4,7 @@ Handles parsing, cleaning, and writing of GROMACS .itp topology files.
 
 import os
 
-from .mol_record import ItpAngle, ItpAtom, ItpBond, ItpDih, ItpPair
+from .mol_record import ItpAngle, ItpAtom, ItpBond, ItpCmap, ItpDih, ItpPair
 from .topology_tools import reindex_topology
 
 
@@ -103,16 +103,17 @@ class TopologyParser:
         :param filepath: Path to the .itp file.
         :type filepath: str
         :return: A tuple containing the moleculetype string and lists of topology dataclasses.
-        :rtype: tuple of (str, list, list, list, list, list)
+        :rtype: tuple of (str, list, list, list, list, list, list)
         """
 
-        atoms, bonds, pairs, angles, dihs = [], [], [], [], []
+        atoms, bonds, pairs, angles, dihs, cmap = [], [], [], [], [], []
 
         section_map = {
             "bonds": (bonds, ItpBond, 3),
             "pairs": (pairs, ItpPair, 3),
             "angles": (angles, ItpAngle, 4),
             "dihedrals": (dihs, ItpDih, 5),
+            "cmap": (cmap, ItpCmap, 6),
         }
 
         current_section = None
@@ -174,7 +175,7 @@ class TopologyParser:
                         )
 
             moltype_section = "".join(moltype_lines)
-            return moltype_section, atoms, bonds, pairs, angles, dihs
+            return moltype_section, atoms, bonds, pairs, angles, dihs, cmap
 
 
 class TopologyBuilder:
@@ -198,9 +199,10 @@ class TopologyBuilder:
         self.filename = filename
         self.mol_name = mol_name
 
-    def write_itp(self):
+    def write_itp(self, posre_fc=1000):
         """
         Synchronizes internal atom indices and writes the topology out to disk.
+        :param posre_fc: The force constant for the position restraints section of the itp in kJ/mol/nm2
 
         :return: None.
         """
@@ -268,6 +270,25 @@ class TopologyBuilder:
                     for d in self.mol.dihs
                 )
                 f.write("\n")
+
+            # CMAP section
+            if self.mol.cmap:
+                f.write("[ cmap ]\n;  ai    aj    ak    al  am funct\n")
+                f.writelines(
+                    f"{cmp.a1:>7d} {cmp.a2:>7d} {cmp.a3:>7d} {cmp.a4:>7d} {cmp.a5:>7d} {cmp.type:>7d}\n"
+                    for cmp in self.mol.cmap
+                )
+                f.write("\n")
+
+            f.write(
+                "#ifdef POSRES\n[ position_restraints ]\n;  ai  funct   fcx    fcy    fcz\n"
+            )
+            f.writelines(
+                f"{a.number:>6d}    1 {posre_fc:>7} {posre_fc:>7} {posre_fc:>7}\n"
+                for a in self.mol.atoms
+                if a.mass > 1.5
+            )
+            f.write("#endif\n")
 
 
 def top_lines(ff_name, includes, mol_name, system_name):
@@ -337,13 +358,9 @@ def write_top(path, ff_name, includes, mol_name, system_name):
     :type mol_name: str
     :param system_name: The name of the system listed in the system section of topol.top.
     :type system_name: str
-    :return: topol.top
-    :rtype: str
     """
 
     lines = top_lines(ff_name, includes, mol_name, system_name)
 
     with open(path, "w") as file:
         file.write("\n".join(lines) + "\n")
-
-    return file

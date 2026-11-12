@@ -84,6 +84,18 @@ class ItpDih:
 
 
 @dataclass
+class ItpCmap:
+    """Represents a CMAP cross-term (five backbone atoms) in a GROMACS [ cmap ] directive."""
+
+    a1: int
+    a2: int
+    a3: int
+    a4: int
+    a5: int
+    type: int
+
+
+@dataclass
 class Notes:
     note: str
 
@@ -105,6 +117,7 @@ class Mol:
     pairs: list[ItpPair] = field(default_factory=list)
     angles: list[ItpAngle] = field(default_factory=list)
     dihs: list[ItpDih] = field(default_factory=list)
+    cmap: list[ItpCmap] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
     def load_itp(self, itp_path: str):
@@ -116,9 +129,16 @@ class Mol:
         """
         from .topology_io import TopologyParser
 
-        moltype, a, b, p, ang, d = TopologyParser.read_file(itp_path)
+        moltype, a, b, p, ang, d, cmp = TopologyParser.read_file(itp_path)
         self.moltype_section = moltype
-        self.atoms, self.bonds, self.pairs, self.angles, self.dihs = a, b, p, ang, d
+        self.atoms, self.bonds, self.pairs, self.angles, self.dihs, self.cmap = (
+            a,
+            b,
+            p,
+            ang,
+            d,
+            cmp,
+        )
 
     def get_pdb_record(
         self, res_seq: int, chain: str, res_name: str, atom_name: str

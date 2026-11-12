@@ -116,5 +116,33 @@ def reindex_topology(mol, remap_dict=None):
             continue
     mol.dihs = new_dihs
 
-    return index_map
+    # Update cmap
+    new_cmap = []
+    seen_cmap = set()
+    for c in mol.cmap:
+        target_a1 = remap_dict.get(c.a1, c.a1)
+        target_a2 = remap_dict.get(c.a2, c.a2)
+        target_a3 = remap_dict.get(c.a3, c.a3)
+        target_a4 = remap_dict.get(c.a4, c.a4)
+        target_a5 = remap_dict.get(c.a5, c.a5)
+        try:
+            new_a1 = index_map[target_a1]
+            new_a2 = index_map[target_a2]
+            new_a3 = index_map[target_a3]
+            new_a4 = index_map[target_a4]
+            new_a5 = index_map[target_a5]
 
+            # Check forwards and backwards
+            sig1 = (new_a1, new_a2, new_a3, new_a4, new_a5, c.type)
+            sig2 = (new_a5, new_a4, new_a3, new_a2, new_a1, c.type)
+
+            if sig1 not in seen_cmap and sig2 not in seen_cmap:
+                seen_cmap.add(sig1)
+                new_cmap.append(
+                    replace(c, a1=new_a1, a2=new_a2, a3=new_a3, a4=new_a4, a5=new_a5)
+                )
+        except KeyError:
+            continue
+    mol.cmap = new_cmap
+
+    return index_map
