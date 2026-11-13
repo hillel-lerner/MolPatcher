@@ -26,6 +26,9 @@
     "O1": "OT2"
   },
   "patch_new_res_name": "PFP",
+  "patch_res_atoms": [
+    "OT2"
+  ],
   "patch_deletions": [
     "H1",
     "H2",

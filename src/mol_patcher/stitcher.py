@@ -4,6 +4,7 @@ to base protein targets. Handles file loading, atom deletion, index offsetting,
 and electrostatic balancing.
 """
 
+from collections import defaultdict, deque
 from dataclasses import replace
 
 from .geometry import MolGraph
@@ -690,6 +691,75 @@ class Stitcher:
                 target_charge=new_res_charge.get("target_charge", 0),
                 res_id=target_reference.res_seq + 1,
                 sinks=new_res_charge.get("charge_sinks", []),
+            )
+
+        # ===== optional: relabel atoms from the base to be part of the patch residue (if neighbors)  =====
+        move_names = self.config.get("patch_res_atoms", [])
+
+        if move_names:
+            neighbors = defaultdict(set)
+
+            for b in stitched_mol.bonds:
+                neighbors[b.a1].add(b.a2)
+                neighbors[b.a2].add(b.a1)
+
+            patch_atoms = set()
+            candidates = set()
+
+            for atom in stitched_mol.atoms:
+                rec = stitched_itp_to_pdb.get(atom.number)
+                if rec is None or rec.chain.strip() != target_reference.chain.strip():
+                    continue
+                if rec.res_seq == target_reference.res_seq + 1:
+                    patch_atoms.add(atom.number)
+                elif (
+                    rec.res_seq == target_reference.res_seq
+                    and atom.atom.strip() in move_names
+                ):
+                    candidates.add(atom.number)
+
+            queue = deque(n for n in candidates if neighbors[n] & patch_atoms)
+            found = set(queue)
+            while queue:
+                n = queue.popleft()
+                for nb in neighbors[n]:
+                    if nb in candidates and nb not in found:
+                        found.add(nb)
+                        queue.append(nb)
+
+            found_names = {
+                a.atom.strip() for a in stitched_mol.atoms if a.number in found
+            }
+            missing = [name for name in move_names if name not in found_names]
+            if missing:
+                raise ValueError(
+                    f"patch_res_atoms not bonded to the patch through other listed atoms: {', '.join(missing)}"
+                )
+
+            new_res_seq = target_reference.res_seq + 1
+            new_res_name = self.config["patch_new_res_name"]
+            for atom in stitched_mol.atoms:
+                if atom.number in found:
+                    rec = stitched_itp_to_pdb[atom.number]
+                    rec.res_seq = new_res_seq
+                    rec.res_name = new_res_name
+                    atom.res_n = new_res_seq
+                    atom.res = new_res_name
+
+            for res in (target_reference.res_seq, new_res_seq):
+                total = sum(
+                    a.charge
+                    for a in stitched_mol.atoms
+                    if stitched_itp_to_pdb[a.number].res_seq == res
+                    and stitched_itp_to_pdb[a.number].chain.strip()
+                    == target_reference.chain.strip()
+                )
+                print(
+                    f"Charge of residue {res} after moving {', '.join(sorted(found_names))}: {total:.6f}"
+                )
+            stitched_mol.notes.append(
+                f"Moved {', '.join(sorted(found_names))} into residue {new_res_seq} ({new_res_name}); "
+                "charges unchanged, residue sums are not integers."
             )
 
         junction_log = {

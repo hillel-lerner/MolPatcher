@@ -148,6 +148,9 @@ def run_patch(
     base_pdb_list = [r.name for r in target_residue_atoms]
     base_topol_list = [a.atom for a in base_mol.atoms if a.res_n == base_resid]
 
+    res_atoms = junction_config.get("patch_res_atoms", [])
+    base_names.extend(res_atoms)
+
     patch_notvalid = validate_names(
         patch_pdb_list, patch_topol_list, patch_names, "patch"
     )
@@ -208,6 +211,9 @@ def run_patch(
         invalid.append(
             "Error: a merged template without patch_new_res_name must set new_res_name."
         )
+
+    if res_atoms and not pfp_res:
+        invalid.append("Error: patch_res_atoms requires patch_new_res_name.")
 
     if invalid:
         for i in invalid:
@@ -281,7 +287,7 @@ def run_patch(
         print("Merging docked-SCR topology into patch")
 
         scr_top_parser = TopologyParser()
-        _, scr_atoms, scr_bonds, scr_pairs, scr_angles, scr_dihs = (
+        _, scr_atoms, scr_bonds, scr_pairs, scr_angles, scr_dihs, _ = (
             scr_top_parser.read_file(scr_itp)
         )
 
